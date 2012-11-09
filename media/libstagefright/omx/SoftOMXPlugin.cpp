@@ -40,7 +40,11 @@ static const struct {
     { "OMX.google.amrnb.encoder", "amrnbenc", "audio_encoder.amrnb" },
     { "OMX.google.amrwb.decoder", "amrdec", "audio_decoder.amrwb" },
     { "OMX.google.amrwb.encoder", "amrwbenc", "audio_encoder.amrwb" },
+#ifdef ALLWINNER
+    { "OMX.google.h264.decoder", "cedar_h264dec", "video_decoder.avc" },
+#else
     { "OMX.google.h264.decoder", "h264dec", "video_decoder.avc" },
+#endif
     { "OMX.google.h264.encoder", "h264enc", "video_encoder.avc" },
     { "OMX.google.g711.alaw.decoder", "g711dec", "audio_decoder.g711alaw" },
     { "OMX.google.g711.mlaw.decoder", "g711dec", "audio_decoder.g711mlaw" },

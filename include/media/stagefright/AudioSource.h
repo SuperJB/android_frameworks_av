@@ -66,7 +66,11 @@ private:
 
         // This is the initial mute duration to suppress
         // the video recording signal tone
+#ifdef ALLWINNER
         kAutoRampStartUs = 700000,
+#else
+        kAutoRampStartUs = 0,
+#endif
     };
 
     Mutex mLock;

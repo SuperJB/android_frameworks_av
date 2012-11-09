@@ -18,6 +18,10 @@ LOCAL_SHARED_LIBRARIES := \
 	libui \
 	libgui
 
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
+
 ifeq ($(BOARD_USES_QCOM_HARDWARE),true)
 	LOCAL_CFLAGS += -DQCOM_HARDWARE
 endif

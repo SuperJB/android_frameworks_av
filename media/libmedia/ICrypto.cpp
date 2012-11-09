@@ -142,11 +142,15 @@ struct BpCrypto : public BpInterface<ICrypto> {
             errorDetailMsg->setTo(reply.readCString());
         }
 
-        if (!secure && result >= 0) {
-            reply.read(dstPtr, result);
+        if (result != OK) {
+            return result;
         }
 
-        return result;
+        if (!secure) {
+            reply.read(dstPtr, totalSize);
+        }
+
+        return OK;
     }
 
 private:
@@ -255,7 +259,8 @@ status_t BnCrypto::onTransact(
             }
 
             AString errorDetailMsg;
-            ssize_t result = decrypt(
+
+            ssize_t err = decrypt(
                     secure,
                     key,
                     iv,
@@ -265,18 +270,18 @@ status_t BnCrypto::onTransact(
                     dstPtr,
                     &errorDetailMsg);
 
-            reply->writeInt32(result);
+            reply->writeInt32(err);
 
-            if (result >= ERROR_DRM_VENDOR_MIN
-                && result <= ERROR_DRM_VENDOR_MAX) {
+            if (err >= ERROR_DRM_VENDOR_MIN
+                    && err <= ERROR_DRM_VENDOR_MAX) {
                 reply->writeCString(errorDetailMsg.c_str());
             }
 
             if (!secure) {
-                if (result >= 0) {
-                    CHECK_LE(result, static_cast<ssize_t>(totalSize));
-                    reply->write(dstPtr, result);
+                if (err == OK) {
+                    reply->write(dstPtr, totalSize);
                 }
+
                 free(dstPtr);
                 dstPtr = NULL;
             }

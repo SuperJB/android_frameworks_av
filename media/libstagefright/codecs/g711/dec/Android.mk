@@ -11,6 +11,10 @@ LOCAL_C_INCLUDES := \
 LOCAL_SHARED_LIBRARIES := \
         libstagefright libstagefright_omx libstagefright_foundation libutils
 
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
+
 LOCAL_MODULE := libstagefright_soft_g711dec
 LOCAL_MODULE_TAGS := optional
 

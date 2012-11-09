@@ -13,6 +13,10 @@ ifeq ($(TARGET_BOARD_PLATFORM), exynos4)
 LOCAL_CFLAGS += -DMALI_ALIGNMENT
 endif
 
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
+
 LOCAL_MODULE:= libstagefright_color_conversion
 
 include $(BUILD_STATIC_LIBRARY)

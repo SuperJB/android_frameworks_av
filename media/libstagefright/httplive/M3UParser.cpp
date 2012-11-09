@@ -158,6 +158,11 @@ status_t M3UParser::parse(const void *_data, size_t size) {
         while (offsetLF < size && data[offsetLF] != '\n') {
             ++offsetLF;
         }
+#ifdef ALLWINNER
+       if (offsetLF >= size) {
+            break;
+        }
+#endif
 
         AString line;
         if (offsetLF > offset && data[offsetLF - 1] == '\r') {

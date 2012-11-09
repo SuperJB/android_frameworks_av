@@ -38,26 +38,67 @@ StagefrightMediaScanner::StagefrightMediaScanner() {}
 StagefrightMediaScanner::~StagefrightMediaScanner() {}
 
 static bool FileHasAcceptableExtension(const char *extension) {
+#ifdef ALLWINNER
+    static const char *kValidExtensions[] = {
+        ".mp3", ".mp4", ".m4a", ".3gp", ".3gpp", ".3g2", ".3gpp2",
+        ".mpeg", ".ogg", ".mid", ".smf", ".imy", ".wma", ".aac",
+        ".wav", ".amr", ".midi", ".xmf", ".rtttl", ".rtx", ".ota",
+        ".mka", ".fl", ".flac", ".mxmf",
+        ".mpg", ".mpeg",
+#else
     static const char *kValidExtensions[] = {
         ".mp3", ".mp4", ".m4a", ".3gp", ".3gpp", ".3g2", ".3gpp2",
         ".mpeg", ".ogg", ".mid", ".smf", ".imy", ".wma", ".aac",
         ".wav", ".amr", ".midi", ".xmf", ".rtttl", ".rtx", ".ota",
         ".mkv", ".mka", ".webm", ".ts", ".fl", ".flac", ".mxmf",
         ".avi", ".mpg", ".qcp", ".awb", ".ac3", ".dts", ".wmv",
+#endif
 #ifdef QCOM_HARDWARE
         ".ec3"
 #endif
     };
+
+#ifdef ALLWINNER
+    static const char *kValidExtensionsAW[] = {
+       ".mkv", ".rmvb", ".rm", ".mov", ".flv", ".f4v", ".avi",
+       ".mp1", ".mp2", ".awb", ".oga", ".ape", ".ac3",
+       ".dts", ".omg", ".oma", ".midi", ".m4v", ".wmv", ".asf",
+       ".vob", ".pmp", ".m4r", ".ra", ".webm",
+       ".ts",".m2ts"
+    };
+
+    size_t kNumValidExtensions;
+
+    kNumValidExtensions =
+#else
     static const size_t kNumValidExtensions =
+#endif
         sizeof(kValidExtensions) / sizeof(kValidExtensions[0]);
 
     for (size_t i = 0; i < kNumValidExtensions; ++i) {
         if (!strcasecmp(extension, kValidExtensions[i])) {
+#ifdef ALLWINNER
+            return 1;
+#else
             return true;
+#endif
         }
     }
 
+#ifdef ALLWINNER
+    kNumValidExtensions =
+            sizeof(kValidExtensionsAW) / sizeof(kValidExtensionsAW[0]);
+
+    for (size_t i = 0; i < kNumValidExtensions; ++i) {
+		if (!strcasecmp(extension, kValidExtensionsAW[i])) {
+			return 2;
+		}
+	}
+
+    return 0;
+#else
     return false;
+#endif
 }
 
 static MediaScanResult HandleMIDI(
@@ -124,14 +165,24 @@ MediaScanResult StagefrightMediaScanner::processFileInternal(
         const char *path, const char *mimeType,
         MediaScannerClient &client) {
     const char *extension = strrchr(path, '.');
+#ifdef ALLWINNER
+    int faccext_ret;
+#endif
 
     if (!extension) {
         return MEDIA_SCAN_RESULT_SKIPPED;
     }
 
+#ifdef ALLWINNER
+    faccext_ret = FileHasAcceptableExtension(extension);
+    if (!faccext_ret) {
+        return MEDIA_SCAN_RESULT_SKIPPED;
+    }
+#else
     if (!FileHasAcceptableExtension(extension)) {
         return MEDIA_SCAN_RESULT_SKIPPED;
     }
+#endif
 
     if (!strcasecmp(extension, ".mid")
             || !strcasecmp(extension, ".smf")
@@ -145,16 +196,86 @@ MediaScanResult StagefrightMediaScanner::processFileInternal(
         return HandleMIDI(path, &client);
     }
 
+#ifdef ALLWINNER
+    status_t status;
+    sp<MediaMetadataRetriever> mRetriever(new MediaMetadataRetriever);
+ 
+    if(faccext_ret == 2) { //aw media scanner
+      status = mRetriever->setDataSource(path);
+    } else {
+    	int fd = open(path, O_RDONLY | O_LARGEFILE);
+	status_t status;
+	if (fd < 0) {
+        // couldn't open it locally, maybe the media server can?
+        	status = mRetriever->setDataSource(path);
+	} else {
+	        status = mRetriever->setDataSource(fd, 0, 0x7ffffffffffffffL);
+        	close(fd);
+	}
+
+	if (status) {
+        	return MEDIA_SCAN_RESULT_ERROR;
+        }
+
+        const char *value;
+        if ((value = mRetriever->extractMetadata(
+                    METADATA_KEY_MIMETYPE)) != NULL) {
+            status = client.setMimeType(value);
+            if (status) {
+                 return MEDIA_SCAN_RESULT_ERROR;
+            }
+        }
+
+        struct KeyMap {
+            const char *tag;
+            int key;
+        };
+    
+        static const KeyMap kKeyMap[] = {
+        	{ "tracknumber", METADATA_KEY_CD_TRACK_NUMBER },
+	        { "discnumber", METADATA_KEY_DISC_NUMBER },
+	        { "album", METADATA_KEY_ALBUM },
+	        { "artist", METADATA_KEY_ARTIST },
+	        { "albumartist", METADATA_KEY_ALBUMARTIST },
+	        { "composer", METADATA_KEY_COMPOSER },
+	        { "genre", METADATA_KEY_GENRE },
+	        { "title", METADATA_KEY_TITLE },
+	        { "year", METADATA_KEY_YEAR },
+	        { "duration", METADATA_KEY_DURATION },
+	        { "writer", METADATA_KEY_WRITER },
+	        { "compilation", METADATA_KEY_COMPILATION },
+	        { "isdrm", METADATA_KEY_IS_DRM },
+	        { "width", METADATA_KEY_VIDEO_WIDTH },
+	        { "height", METADATA_KEY_VIDEO_HEIGHT },
+	};
+    
+        static const size_t kNumEntries = sizeof(kKeyMap) / sizeof(kKeyMap[0]);
+
+        for (size_t i = 0; i < kNumEntries; ++i) {
+            const char *value;
+            if ((value = mRetriever->extractMetadata(kKeyMap[i].key)) != NULL) {
+                status = client.addStringTag(kKeyMap[i].tag, value);
+                if (status != OK) {
+                    return MEDIA_SCAN_RESULT_ERROR;
+                }
+            }
+        }
+      }
+
+        return MEDIA_SCAN_RESULT_OK;
+    }
+#else
     sp<MediaMetadataRetriever> mRetriever(new MediaMetadataRetriever);
 
-    int fd = open(path, O_RDONLY | O_LARGEFILE);
-    status_t status;
-    if (fd < 0) {
-        // couldn't open it locally, maybe the media server can?
-        status = mRetriever->setDataSource(path);
-    } else {
-        status = mRetriever->setDataSource(fd, 0, 0x7ffffffffffffffL);
-        close(fd);
+		int fd = open(path, O_RDONLY | O_LARGEFILE);
+		status_t status;
+		if (fd < 0) {
+			// couldn't open it locally, maybe the media server can?
+			status = mRetriever->setDataSource(path);
+		} else {
+			status = mRetriever->setDataSource(fd, 0, 0x7ffffffffffffffL);
+			close(fd);
+		}
     }
 
     if (status) {
@@ -205,6 +326,7 @@ MediaScanResult StagefrightMediaScanner::processFileInternal(
 
     return MEDIA_SCAN_RESULT_OK;
 }
+#endif
 
 char *StagefrightMediaScanner::extractAlbumArt(int fd) {
     ALOGV("extractAlbumArt %d", fd);

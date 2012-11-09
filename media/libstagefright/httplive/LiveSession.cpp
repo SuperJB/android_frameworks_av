@@ -97,6 +97,22 @@ void LiveSession::disconnect() {
     (new AMessage(kWhatDisconnect, id()))->post();
 }
 
+#ifdef ALLWINNER
+int64_t LiveSession::seekTo(int64_t timeUs) {
+    Mutex::Autolock autoLock(mLock);
+    bool mSeekDone = false;
+
+    sp<AMessage> msg = new AMessage(kWhatSeek, id());
+    msg->setInt64("timeUs", timeUs);
+    msg->post();
+
+    while (!mSeekDone) {
+        mCondition.wait(mLock);
+    }
+    return 0;
+}
+
+#else
 void LiveSession::seekTo(int64_t timeUs, int64_t* newSeekTime ) {
     Mutex::Autolock autoLock(mLock);
     mSeeking = true;
@@ -114,6 +130,7 @@ void LiveSession::seekTo(int64_t timeUs, int64_t* newSeekTime ) {
     }
     mSeekTimeUs = -1;
 }
+#endif
 
 void LiveSession::setCurrentPlayingTime(int64_t curPlayTime) {
     mCurrentPlayingTime = curPlayTime;

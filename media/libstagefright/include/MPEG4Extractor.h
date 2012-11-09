@@ -58,6 +58,9 @@ private:
 
     sp<DataSource> mDataSource;
     status_t mInitCheck;
+#ifdef ALLWINNER
+    bool mIsQtff;
+#endif
     bool mHasVideo;
 
     Track *mFirstTrack, *mLastTrack;

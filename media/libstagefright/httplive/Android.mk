@@ -12,6 +12,10 @@ LOCAL_C_INCLUDES:= \
 	$(TOP)/frameworks/native/include/media/openmax \
 	$(TOP)/external/openssl/include
 
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
+
 LOCAL_MODULE:= libstagefright_httplive
 
 ifeq ($(TARGET_ARCH),arm)

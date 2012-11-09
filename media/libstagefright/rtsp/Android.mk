@@ -28,6 +28,10 @@ ifeq ($(TARGET_ARCH),arm)
     LOCAL_CFLAGS += -Wno-psabi
 endif
 
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
+
 include $(BUILD_STATIC_LIBRARY)
 
 ################################################################################
@@ -48,6 +52,10 @@ LOCAL_C_INCLUDES:= \
 	$(TOP)/frameworks/native/include/media/openmax
 
 LOCAL_CFLAGS += -Wno-multichar
+
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
 
 LOCAL_MODULE_TAGS := debug
 

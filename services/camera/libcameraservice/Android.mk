@@ -28,6 +28,10 @@ ifeq ($(BOARD_HAVE_HTC_FFC), true)
 LOCAL_CFLAGS += -DBOARD_HAVE_HTC_FFC
 endif
 
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
+
 LOCAL_MODULE:= libcameraservice
 
 include $(BUILD_SHARED_LIBRARY)

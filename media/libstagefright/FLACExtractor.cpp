@@ -798,8 +798,13 @@ bool SniffFLAC(
     // 042 is the mandatory STREAMINFO
     // no need to read rest of the header, as a premature EOF will be caught later
     uint8_t header[4+4];
+#ifdef ALLWINNER
+    if (source->readAt(0, header, sizeof(header)) != sizeof(header)
+    		|| memcmp("fLaC", header, 4))
+#else
     if (source->readAt(0, header, sizeof(header)) != sizeof(header)
             || memcmp("fLaC\0\0\0\042", header, 4+4))
+#endif
     {
         return false;
     }

@@ -21,6 +21,10 @@ ifeq ($(BOARD_USE_SECTVOUT),true)
     LOCAL_SHARED_LIBRARIES += libTVOut
 endif
 
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
+
 # FIXME The duplicate audioflinger is temporary
 LOCAL_C_INCLUDES := \
     frameworks/av/media/libmediaplayerservice \

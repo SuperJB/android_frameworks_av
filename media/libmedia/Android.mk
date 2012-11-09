@@ -2,6 +2,10 @@ LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
 
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
+
 LOCAL_SRC_FILES:= \
     AudioParameter.cpp
 LOCAL_MODULE:= libmedia_helper
@@ -14,6 +18,10 @@ include $(BUILD_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
 
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
+
 LOCAL_SRC_FILES:= AudioParameter.cpp
 LOCAL_MODULE:= libaudioparameter
 LOCAL_MODULE_TAGS := optional
@@ -25,6 +33,10 @@ include $(BUILD_SHARED_LIBRARY)
 
 
 include $(CLEAR_VARS)
+
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
 
 LOCAL_SRC_FILES:= \
     AudioTrack.cpp \

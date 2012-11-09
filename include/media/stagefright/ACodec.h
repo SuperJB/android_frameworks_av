@@ -152,6 +152,11 @@ private:
 
     sp<ANativeWindow> mNativeWindow;
 
+#ifdef ALLWINNER
+    sp<ANativeWindow> mNativeWindowSoft;
+    int32_t mVideoWidth,mVideoHeight;
+#endif
+
     Vector<BufferInfo> mBuffers[2];
     bool mPortEOS[2];
     status_t mInputEOSResult;
@@ -219,7 +224,11 @@ private:
             OMX_U32 portIndex, OMX_AUDIO_CODINGTYPE desiredFormat);
 
     status_t setupAMRCodec(bool encoder, bool isWAMR, int32_t bitRate);
+#ifdef ALLWINNER
+    status_t setupG711Codec(bool encoder, int32_t numChannels, int32_t sampleRate);
+#else
     status_t setupG711Codec(bool encoder, int32_t numChannels);
+#endif
 
     status_t setupFlacCodec(
             bool encoder, int32_t numChannels, int32_t sampleRate, int32_t compressionLevel);

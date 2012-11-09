@@ -41,6 +41,9 @@ enum video_source {
     VIDEO_SOURCE_DEFAULT = 0,
     VIDEO_SOURCE_CAMERA = 1,
     VIDEO_SOURCE_GRALLOC_BUFFER = 2,
+#ifdef ALLWINNER
+    VIDEO_SOURCE_PUSH_BUFFER = 3,
+#endif
 
     VIDEO_SOURCE_LIST_END  // must be last - used to validate audio source type
 };
@@ -67,6 +70,11 @@ enum output_format {
 
     /* H.264/AAC data encapsulated in MPEG2/TS */
     OUTPUT_FORMAT_MPEG2TS = 8,
+
+#ifdef ALLWINNER
+    OUTPUT_FORMAT_AWTS    = 9,
+    OUTPUT_FORMAT_RAW     = 10,
+#endif
 
 #ifdef QCOM_HARDWARE
     OUTPUT_FORMAT_QCP = 9, // QCP file format
@@ -135,6 +143,13 @@ enum media_recorder_event_type {
     MEDIA_RECORDER_TRACK_EVENT_ERROR              = 100,
     MEDIA_RECORDER_TRACK_EVENT_INFO               = 101,
     MEDIA_RECORDER_TRACK_EVENT_LIST_END           = 1000,
+
+#ifdef ALLWINNER
+    MEDIA_RECORDER_VENDOR_EVENT_LIST_START        = 3000,
+    MEDIA_RECORDER_VENDOR_EVENT_EMPTY_BUFFER_ID   = 3000,
+    MEDIA_RECORDER_VENDOR_EVENT_BSFRAME_AVAILABLE = 3001,
+    MEDIA_RECORDER_VENDOR_EVENT_LIST_END		  = 3100,
+#endif
 };
 
 /*
@@ -239,7 +254,10 @@ public:
     status_t    release();
     void        notify(int msg, int ext1, int ext2);
     sp<ISurfaceTexture>     querySurfaceMediaSourceFromMediaServer();
-
+#ifdef ALLWINNER
+    status_t queueBuffer(int index, int addr_y, int addr_c, int64_t timestamp);
+    sp<IMemory> getOneBsFrame(int mode);
+#endif
 private:
     void                    doCleanUp();
     status_t                doReset();

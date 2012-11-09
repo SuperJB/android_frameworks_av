@@ -2,6 +2,11 @@ LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
 
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
+
+
 LOCAL_SRC_FILES:=       \
 	stagefright.cpp \
 	jpeg.cpp	\
@@ -29,6 +34,11 @@ include $(BUILD_EXECUTABLE)
 
 include $(CLEAR_VARS)
 
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
+
+
 LOCAL_SRC_FILES:=         \
         SineSource.cpp    \
         record.cpp
@@ -51,6 +61,10 @@ include $(BUILD_EXECUTABLE)
 ################################################################################
 
 include $(CLEAR_VARS)
+
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
 
 LOCAL_SRC_FILES:=         \
         SineSource.cpp    \
@@ -76,6 +90,11 @@ include $(BUILD_EXECUTABLE)
 
 include $(CLEAR_VARS)
 
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
+
+
 LOCAL_SRC_FILES:=         \
         SineSource.cpp    \
         audioloop.cpp
@@ -98,6 +117,11 @@ include $(BUILD_EXECUTABLE)
 ################################################################################
 
 include $(CLEAR_VARS)
+
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
+
 
 LOCAL_SRC_FILES:=         \
         stream.cpp    \
@@ -122,6 +146,11 @@ include $(BUILD_EXECUTABLE)
 
 include $(CLEAR_VARS)
 
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
+
+
 LOCAL_SRC_FILES:=         \
         sf2.cpp    \
 
@@ -144,6 +173,11 @@ include $(BUILD_EXECUTABLE)
 ################################################################################
 
 include $(CLEAR_VARS)
+
+ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+	LOCAL_CFLAGS += -DALLWINNER
+endif
+
 
 LOCAL_SRC_FILES:=               \
         codec.cpp               \

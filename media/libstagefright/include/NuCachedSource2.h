@@ -105,6 +105,9 @@ private:
     PageCache *mCache;
     off64_t mCacheOffset;
     status_t mFinalStatus;
+#ifdef ALLWINNER
+    bool mForceReconnect;
+#endif
     off64_t mLastAccessPos;
     sp<AMessage> mAsyncResult;
     bool mFetching;

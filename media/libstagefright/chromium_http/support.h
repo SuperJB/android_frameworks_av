@@ -96,6 +96,10 @@ struct SfDelegate : public net::URLRequest::Delegate {
 
     void setUID(uid_t uid);
 
+#ifdef ALLWINNER
+    void setUA(int ua);
+#endif
+
     virtual void OnReceivedRedirect(
             net::URLRequest *request, const GURL &new_url, bool *defer_redirect);
 

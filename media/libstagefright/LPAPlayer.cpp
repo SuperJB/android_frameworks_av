@@ -151,9 +151,15 @@ void LPAPlayer::releaseWakeLock()
 
 void LPAPlayer::clearPowerManager()
 {
+#ifdef ALLWINNER
+    Mutex::Autolock _l(pmLock);
+    releaseWakeLock();
+    mPowerManager.clear();
+#else
     /*Mutex::Autolock _l(pmLock);
     releaseWakeLock();
     mPowerManager.clear();*/
+#endif
 }
 
 void LPAPlayer::PMDeathRecipient::binderDied(const wp<IBinder>& who)
@@ -410,6 +416,9 @@ void LPAPlayer::pause(bool playPendingSamples) {
             } else {
             if (mAudioSink.get() != NULL) {
                 mAudioSink->pause();
+#ifdef ALLWINNER
+                mAudioSink->flush();
+#endif
             }
         }
     }

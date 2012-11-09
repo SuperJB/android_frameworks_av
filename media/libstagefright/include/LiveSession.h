@@ -46,7 +46,11 @@ struct LiveSession : public AHandler {
     void disconnect();
 
     // Blocks until seek is complete.
+#ifdef ALLWINNER
+    int64_t seekTo(int64_t timeUs);
+#else
     void seekTo(int64_t timeUs, int64_t* newSeekTime = NULL);
+#endif
 
     status_t getDuration(int64_t *durationUs);
     bool isSeekable();
@@ -106,6 +110,17 @@ private:
 
     int32_t mMonitorQueueGeneration;
 
+#ifdef ALLWINNER
+    int64_t mSeekTargetStartUs;
+    bool mHasSeekMsg;
+    bool mLastDownloadTobeContinue;
+    int32_t mLastDownloadOffset;
+    int32_t mLastSubSeqNumber;
+    int32_t mLastSeqNumberBase;
+    bool mIsPlaylistRedirected;
+    char* mPlaylistRedirectURL;
+#endif
+
     enum RefreshState {
         INITIAL_MINIMUM_RELOAD_DELAY,
         FIRST_UNCHANGED_RELOAD_ATTEMPT,
@@ -127,6 +142,9 @@ private:
     status_t fetchFile(
             const char *url, sp<ABuffer> *out,
             int64_t range_offset = 0, int64_t range_length = -1);
+#ifdef ALLWINNER
+            int32_t fetchTsData(const char* url, bool continueLast);
+#endif
 
     sp<M3UParser> fetchPlaylist(const char *url, bool *unchanged);
     size_t getBandwidthIndex();

@@ -45,6 +45,9 @@ struct NuPlayerDriver : public MediaPlayerInterface {
     virtual status_t stop();
     virtual status_t pause();
     virtual bool isPlaying();
+#ifdef ALLWINNER
+    virtual int getMeidaPlayerState();
+#endif
     virtual status_t seekTo(int msec);
     virtual status_t getCurrentPosition(int *msec);
     virtual status_t getDuration(int *msec);

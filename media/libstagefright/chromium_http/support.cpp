@@ -46,6 +46,10 @@ static Mutex gNetworkThreadLock;
 static base::Thread *gNetworkThread = NULL;
 static scoped_refptr<net::URLRequestContext> gReqContext;
 static scoped_ptr<net::NetworkChangeNotifier> gNetworkChangeNotifier;
+#ifdef ALLWINNER
+static std::string gIpadUAString = "AppleCoreMedia/1.0.0.9A405 (iPad; U; CPU OS 5_0_1 like Mac OS X; zh_cn)";
+static int gIpadUAEnable = 0;
+#endif
 
 bool logMessageHandler(
         int severity,
@@ -200,7 +204,12 @@ SfRequestContext::SfRequestContext() {
 }
 
 const std::string &SfRequestContext::GetUserAgent(const GURL &url) const {
-    return mUserAgent;
+	if(!gIpadUAEnable) {
+		return mUserAgent;
+	}
+	else {
+		return gIpadUAString;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -235,6 +244,12 @@ void SfDelegate::setOwner(ChromiumHTTPDataSource *owner) {
     mOwner = owner;
 }
 
+#ifdef ALLWINNER
+void SfDelegate::setUA(int ua) {
+	gIpadUAEnable = ua;
+}
+#endif
+
 void SfDelegate::setUID(uid_t uid) {
     gReqContext->setUID(uid);
 }
@@ -246,6 +261,13 @@ bool SfDelegate::getUID(uid_t *uid) const {
 void SfDelegate::OnReceivedRedirect(
             net::URLRequest *request, const GURL &new_url, bool *defer_redirect) {
     MY_LOGV("OnReceivedRedirect");
+#ifdef ALLWINNER
+    //* add by chenxiaochuan for QQ live stream.
+    mOwner->setRedirectHost(new_url.host().c_str());
+    mOwner->setRedirectPort(new_url.port().c_str());
+    mOwner->setRedirectPath(new_url.path().c_str());
+    //* end.
+#endif
 }
 
 void SfDelegate::OnAuthRequired(
