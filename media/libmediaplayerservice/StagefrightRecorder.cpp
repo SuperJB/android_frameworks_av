@@ -923,9 +923,6 @@ ERROR:
 status_t StagefrightRecorder::start() {
 #ifdef ALLWINNER
     //CHECK_GE(mOutputFd, 0);
-#else
-    CHECK_GE(mOutputFd, 0);
-#endif
     status_t status = OK;
 
 	if (mbHWEncoder)
@@ -933,11 +930,17 @@ status_t StagefrightRecorder::start() {
 		status = mpCedarXRecorder->start();
 		goto HWENC_BATTERY;
 	}
+#else
+    CHECK_GE(mOutputFd, 0);
+#endif
+
 
     if (mWriter != NULL) {
         ALOGE("File writer is not avaialble");
         return UNKNOWN_ERROR;
     }
+
+    status_t status = OK;
 
 #if defined(QCOM_HARDWARE) && defined(QCOM_FM_ENABLED)
     if(AUDIO_SOURCE_FM_RX_A2DP == mAudioSource)

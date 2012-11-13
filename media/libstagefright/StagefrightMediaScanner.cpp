@@ -276,7 +276,6 @@ MediaScanResult StagefrightMediaScanner::processFileInternal(
 			status = mRetriever->setDataSource(fd, 0, 0x7ffffffffffffffL);
 			close(fd);
 		}
-    }
 
     if (status) {
         return MEDIA_SCAN_RESULT_ERROR;

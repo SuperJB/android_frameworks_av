@@ -211,6 +211,8 @@ const std::string &SfRequestContext::GetUserAgent(const GURL &url) const {
 	else {
 		return gIpadUAString;
 	}
+#else
+        return mUserAgent;
 #endif
 }
 
