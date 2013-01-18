@@ -106,7 +106,7 @@ sp<MetaData> WAVExtractor::getMetaData() {
         return meta;
     }
 
-    meta->setCString(kKeyMIMEType, "audio/x-wav");
+    meta->setCString(kKeyMIMEType, MEDIA_MIMETYPE_CONTAINER_WAV);
 
     return meta;
 }
@@ -401,13 +401,10 @@ status_t WAVSource::read(
         return err;
     }
 
-#ifdef ALLWINNER
+    // make sure that maxBytesToRead is multiple of 3, in 24-bit case
     size_t maxBytesToRead =
-         mBitsPerSample == 8 ? kMaxFrameSize / 2 : (mBitsPerSample == 24 ? (kMaxFrameSize>>2)*3: kMaxFrameSize);
-#else
-    size_t maxBytesToRead =
-        mBitsPerSample == 8 ? kMaxFrameSize / 2 : kMaxFrameSize;
-#endif
+        mBitsPerSample == 8 ? kMaxFrameSize / 2 : 
+        (mBitsPerSample == 24 ? 3*(kMaxFrameSize/3): kMaxFrameSize);
 
     size_t maxBytesAvailable =
         (mCurrentPos - mOffset >= (off64_t)mSize)
@@ -430,7 +427,7 @@ status_t WAVSource::read(
 
     buffer->set_range(0, n);
 
-    if (mWaveFormat == WAVE_FORMAT_PCM) {
+    if (mWaveFormat == WAVE_FORMAT_PCM || mWaveFormat == WAVE_FORMAT_EXTENSIBLE) {
         if (mBitsPerSample == 8) {
             // Convert 8-bit unsigned samples to 16-bit signed.
 
@@ -514,4 +511,3 @@ bool SniffWAV(
 }
 
 }  // namespace android
-

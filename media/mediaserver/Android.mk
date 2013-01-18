@@ -21,8 +21,9 @@ ifeq ($(BOARD_USE_SECTVOUT),true)
     LOCAL_SHARED_LIBRARIES += libTVOut
 endif
 
-ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
-	LOCAL_CFLAGS += -DALLWINNER
+
+ifeq ($(BOARD_USES_QCOM_HARDWARE),true)
+	LOCAL_CFLAGS += -DQCOM_HARDWARE
 endif
 
 # FIXME The duplicate audioflinger is temporary

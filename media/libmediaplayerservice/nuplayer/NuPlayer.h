@@ -65,19 +65,23 @@ public:
     struct WFDSource;
 #endif
 
+    status_t setVideoScalingMode(int32_t mode);
+
 protected:
     virtual ~NuPlayer();
 
     virtual void onMessageReceived(const sp<AMessage> &msg);
 
+public:
+    struct NuPlayerStreamListener;
+    struct Source;
+
 private:
     struct Decoder;
     struct GenericSource;
     struct HTTPLiveSource;
-    struct NuPlayerStreamListener;
     struct Renderer;
     struct RTSPSource;
-    struct Source;
     struct StreamingSource;
 
     enum {
@@ -158,6 +162,8 @@ private:
 #ifdef QCOM_HARDWARE
     NuSourceType mSourceType;
 #endif
+
+    int32_t mVideoScalingMode;
 
     status_t instantiateDecoder(bool audio, sp<Decoder> *decoder);
 

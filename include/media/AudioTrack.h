@@ -142,7 +142,7 @@ public:
      * sampleRate:         Track sampling rate in Hz.
      * format:             Audio format (e.g AUDIO_FORMAT_PCM_16_BIT for signed
      *                     16 bits per sample).
-     * channelMask:        Channel mask: see audio_channels_t.
+     * channelMask:        Channel mask.
      * frameCount:         Minimum size of track PCM buffer in frames. This defines the
      *                     latency of the track. The actual size selected by the AudioTrack could be
      *                     larger if the requested size is not compatible with current audio HAL
@@ -161,7 +161,7 @@ public:
                         AudioTrack( audio_stream_type_t streamType,
                                     uint32_t sampleRate  = 0,
                                     audio_format_t format = AUDIO_FORMAT_DEFAULT,
-                                    int channelMask      = 0,
+                                    audio_channel_mask_t channelMask = 0,
                                     int frameCount       = 0,
                                     audio_output_flags_t flags = AUDIO_OUTPUT_FLAG_NONE,
                                     callback_t cbf       = NULL,
@@ -193,7 +193,7 @@ public:
                         AudioTrack( audio_stream_type_t streamType,
                                     uint32_t sampleRate = 0,
                                     audio_format_t format = AUDIO_FORMAT_DEFAULT,
-                                    int channelMask     = 0,
+                                    audio_channel_mask_t channelMask = 0,
                                     const sp<IMemory>& sharedBuffer = 0,
                                     audio_output_flags_t flags = AUDIO_OUTPUT_FLAG_NONE,
                                     callback_t cbf      = NULL,
@@ -211,13 +211,13 @@ public:
      * Returned status (from utils/Errors.h) can be:
      *  - NO_ERROR: successful initialization
      *  - INVALID_OPERATION: AudioTrack is already initialized
-     *  - BAD_VALUE: invalid parameter (channels, format, sampleRate...)
+     *  - BAD_VALUE: invalid parameter (channelMask, format, sampleRate...)
      *  - NO_INIT: audio server or audio hardware not initialized
      * */
             status_t    set(audio_stream_type_t streamType = AUDIO_STREAM_DEFAULT,
                             uint32_t sampleRate = 0,
                             audio_format_t format = AUDIO_FORMAT_DEFAULT,
-                            int channelMask     = 0,
+                            audio_channel_mask_t channelMask = 0,
                             int frameCount      = 0,
                             audio_output_flags_t flags = AUDIO_OUTPUT_FLAG_NONE,
                             callback_t cbf      = NULL,
@@ -483,8 +483,6 @@ protected:
     private:
         friend class AudioTrack;
         virtual bool        threadLoop();
-        virtual status_t    readyToRun();
-        virtual void        onFirstRef();
         AudioTrack& mReceiver;
         ~AudioTrackThread();
         Mutex               mMyLock;    // Thread::mLock is private
@@ -498,7 +496,7 @@ protected:
             status_t createTrack_l(audio_stream_type_t streamType,
                                  uint32_t sampleRate,
                                  audio_format_t format,
-                                 uint32_t channelMask,
+                                 audio_channel_mask_t channelMask,
                                  int frameCount,
                                  audio_output_flags_t flags,
                                  const sp<IMemory>& sharedBuffer,
@@ -526,7 +524,7 @@ protected:
     uint8_t                 mChannelCount;
     uint8_t                 mMuted;
     uint8_t                 mReserved;
-    uint32_t                mChannelMask;
+    audio_channel_mask_t    mChannelMask;
     status_t                mStatus;
     uint32_t                mLatency;
 
@@ -570,7 +568,7 @@ public:
     status_t allocateTimedBuffer(size_t size, sp<IMemory>* buffer);
 
     /* queue a buffer obtained via allocateTimedBuffer for playback at the
-       given timestamp.  PTS units a microseconds on the media time timeline.
+       given timestamp.  PTS units are microseconds on the media time timeline.
        The media time transform (set with setMediaTimeTransform) set by the
        audio producer will handle converting from media time to local time
        (perhaps going through the common time timeline in the case of

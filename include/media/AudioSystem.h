@@ -70,6 +70,8 @@ public:
     // returns true in *state if tracks are active on the specified stream or has been active
     // in the past inPastMs milliseconds
     static status_t isStreamActive(audio_stream_type_t stream, bool *state, uint32_t inPastMs = 0);
+    // returns true in *state if a recorder is currently recording with the specified source
+    static status_t isSourceActive(audio_source_t source, bool *state);
 
     // set/get audio hardware parameters. The function accepts a list of parameters
     // key value pairs in the form: key1=value1;key2=value2;...
@@ -110,8 +112,8 @@ public:
 
     static bool routedToA2dpOutput(audio_stream_type_t streamType);
 
-    static status_t getInputBufferSize(uint32_t sampleRate, audio_format_t format, int channelCount,
-        size_t* buffSize);
+    static status_t getInputBufferSize(uint32_t sampleRate, audio_format_t format,
+        audio_channel_mask_t channelMask, size_t* buffSize);
 
     static status_t setVoiceVolume(float volume);
 #if defined(QCOM_HARDWARE) && defined(QCOM_FM_ENABLED)
@@ -129,6 +131,7 @@ public:
     // necessary to check returned status before using the returned values.
     static status_t getRenderPosition(uint32_t *halFrames, uint32_t *dspFrames, audio_stream_type_t stream = AUDIO_STREAM_DEFAULT);
 
+    // return the number of input frames lost by HAL implementation, or 0 if the handle is invalid
     static unsigned int  getInputFramesLost(audio_io_handle_t ioHandle);
 
     static int newAudioSessionId();
@@ -195,7 +198,7 @@ public:
     static audio_io_handle_t getOutput(audio_stream_type_t stream,
                                         uint32_t samplingRate = 0,
                                         audio_format_t format = AUDIO_FORMAT_DEFAULT,
-                                        uint32_t channels = AUDIO_CHANNEL_OUT_STEREO,
+                                        audio_channel_mask_t channelMask = AUDIO_CHANNEL_OUT_STEREO,
                                         audio_output_flags_t flags = AUDIO_OUTPUT_FLAG_NONE);
     static status_t startOutput(audio_io_handle_t output,
                                 audio_stream_type_t stream,
@@ -207,8 +210,7 @@ public:
     static audio_io_handle_t getInput(audio_source_t inputSource,
                                     uint32_t samplingRate = 0,
                                     audio_format_t format = AUDIO_FORMAT_DEFAULT,
-                                    uint32_t channels = AUDIO_CHANNEL_IN_MONO,
-                                    audio_in_acoustics_t acoustics = (audio_in_acoustics_t)0,
+                                    audio_channel_mask_t channelMask = AUDIO_CHANNEL_IN_MONO,
                                     int sessionId = 0);
     static status_t startInput(audio_io_handle_t input);
     static status_t stopInput(audio_io_handle_t input);
@@ -226,8 +228,8 @@ public:
     static uint32_t getStrategyForStream(audio_stream_type_t stream);
     static audio_devices_t getDevicesForStream(audio_stream_type_t stream);
 
-    static audio_io_handle_t getOutputForEffect(effect_descriptor_t *desc);
-    static status_t registerEffect(effect_descriptor_t *desc,
+    static audio_io_handle_t getOutputForEffect(const effect_descriptor_t *desc);
+    static status_t registerEffect(const effect_descriptor_t *desc,
                                     audio_io_handle_t io,
                                     uint32_t strategy,
                                     int session,
@@ -240,6 +242,10 @@ public:
     static void clearAudioConfigCache();
 
     static const sp<IAudioPolicyService>& get_audio_policy_service();
+
+    // helpers for android.media.AudioManager.getProperty(), see description there for meaning
+    static int32_t getPrimaryOutputSamplingRate();
+    static int32_t getPrimaryOutputFrameCount();
 
     // ----------------------------------------------------------------------------
 
@@ -284,7 +290,7 @@ private:
     // previous parameters for recording buffer size queries
     static uint32_t gPrevInSamplingRate;
     static audio_format_t gPrevInFormat;
-    static int gPrevInChannelCount;
+    static audio_channel_mask_t gPrevInChannelMask;
 
     static sp<IAudioPolicyService> gAudioPolicyService;
 

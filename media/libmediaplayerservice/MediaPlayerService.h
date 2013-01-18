@@ -41,6 +41,8 @@ class AudioTrack;
 class IMediaRecorder;
 class IMediaMetadataRetriever;
 class IOMX;
+class IRemoteDisplay;
+class IRemoteDisplayClient;
 class MediaRecorderClient;
 
 #define CALLBACK_ANTAGONIZER 0
@@ -254,7 +256,10 @@ public:
     virtual sp<IMemory>         decode(int fd, int64_t offset, int64_t length, uint32_t *pSampleRate, int* pNumChannels, audio_format_t* pFormat);
     virtual sp<IOMX>            getOMX();
     virtual sp<ICrypto>         makeCrypto();
+    virtual sp<IHDCP>           makeHDCP();
 
+    virtual sp<IRemoteDisplay> listenForRemoteDisplay(const sp<IRemoteDisplayClient>& client,
+            const String8& iface);
     virtual status_t            dump(int fd, const Vector<String16>& args);
 
             void                removeClient(wp<Client> client);
@@ -342,7 +347,6 @@ public:
 private:
 
     class Client : public BnMediaPlayer {
-
         // IMediaPlayer interface
         virtual void            disconnect();
         virtual status_t        setVideoSurfaceTexture(
@@ -369,6 +373,7 @@ private:
         virtual status_t        setParameter(int key, const Parcel &request);
         virtual status_t        getParameter(int key, Parcel *reply);
         virtual status_t        setRetransmitEndpoint(const struct sockaddr_in* endpoint);
+        virtual status_t        getRetransmitEndpoint(struct sockaddr_in* endpoint);
         virtual status_t        setNextPlayer(const sp<IMediaPlayer>& player);
 #ifdef ALLWINNER
         /* add by Gary. start {{----------------------------------- */
@@ -458,10 +463,6 @@ private:
         sp<MediaPlayerBase>     setDataSource_pre(player_type playerType);
         void                    setDataSource_post(const sp<MediaPlayerBase>& p,
                                                    status_t status);
-
-        player_type             getPlayerType(int fd, int64_t offset, int64_t length);
-        player_type             getPlayerType(const char* url);
-        player_type             getPlayerType(const sp<IStreamSource> &source);
 
         static  void            notify(void* cookie, int msg,
                                        int ext1, int ext2, const Parcel *obj);

@@ -53,7 +53,7 @@ public:
     enum {
         TRACK_DEFAULT = 0,  // client requests a default AudioTrack
         TRACK_TIMED   = 1,  // client requests a TimedAudioTrack
-        TRACK_FAST    = 2,  // client requests a fast AudioTrack
+        TRACK_FAST    = 2,  // client requests a fast AudioTrack or AudioRecord
     };
     typedef uint32_t track_flags_t;
 
@@ -65,7 +65,7 @@ public:
                                 audio_stream_type_t streamType,
                                 uint32_t sampleRate,
                                 audio_format_t format,
-                                uint32_t channelMask,
+                                audio_channel_mask_t channelMask,
                                 int frameCount,
                                 track_flags_t flags,
                                 const sp<IMemory>& sharedBuffer,
@@ -94,9 +94,10 @@ public:
                                 audio_io_handle_t input,
                                 uint32_t sampleRate,
                                 audio_format_t format,
-                                uint32_t channelMask,
+                                audio_channel_mask_t channelMask,
                                 int frameCount,
                                 track_flags_t flags,
+                                pid_t tid,  // -1 means unused, otherwise must be valid non-0
                                 int *sessionId,
                                 status_t *status) = 0;
 
@@ -104,7 +105,9 @@ public:
      * and therefore can be cached.
      */
     virtual     uint32_t    sampleRate(audio_io_handle_t output) const = 0;
+#if 0
     virtual     int         channelCount(audio_io_handle_t output) const = 0;
+#endif
     virtual     audio_format_t format(audio_io_handle_t output) const = 0;
     virtual     size_t      frameCount(audio_io_handle_t output) const = 0;
 
@@ -146,7 +149,8 @@ public:
     virtual void registerClient(const sp<IAudioFlingerClient>& client) = 0;
 
     // retrieve the audio recording buffer size
-    virtual size_t getInputBufferSize(uint32_t sampleRate, audio_format_t format, int channelCount) const = 0;
+    virtual size_t getInputBufferSize(uint32_t sampleRate, audio_format_t format,
+            audio_channel_mask_t channelMask) const = 0;
 
     virtual audio_io_handle_t openOutput(audio_module_handle_t module,
                                          audio_devices_t *pDevices,
@@ -203,9 +207,17 @@ public:
                                     audio_io_handle_t dstOutput) = 0;
 
     virtual audio_module_handle_t loadHwModule(const char *name) = 0;
+
 #if defined(QCOM_HARDWARE) && defined(QCOM_FM_ENABLED)
     virtual status_t setFmVolume(float volume) = 0;
 #endif
+
+    // helpers for android.media.AudioManager.getProperty(), see description there for meaning
+    // FIXME move these APIs to AudioPolicy to permit a more accurate implementation
+    // that looks on primary device for a stream with fast flag, primary flag, or first one.
+    virtual int32_t getPrimaryOutputSamplingRate() = 0;
+    virtual int32_t getPrimaryOutputFrameCount() = 0;
+
 };
 
 

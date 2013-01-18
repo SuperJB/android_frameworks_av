@@ -13,22 +13,16 @@ endif
 LOCAL_SRC_FILES:=               \
     ActivityManager.cpp         \
     Crypto.cpp                  \
-    MediaRecorderClient.cpp     \
+    HDCP.cpp                    \
+    MediaPlayerFactory.cpp      \
     MediaPlayerService.cpp      \
+    MediaRecorderClient.cpp     \
     MetadataRetrieverClient.cpp \
-    TestPlayerStub.cpp          \
-    MidiMetadataRetriever.cpp   \
     MidiFile.cpp                \
+    MidiMetadataRetriever.cpp   \
+    RemoteDisplay.cpp           \
     StagefrightPlayer.cpp       \
     StagefrightRecorder.cpp
-
-ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
-LOCAL_SRC_FILES+= \
-    CedarPlayer.cpp       		\
-    CedarAPlayerWrapper.cpp		\
-    SimpleMediaFormatProbe.cpp	\
-    MovAvInfoDetect.cpp
-endif
 
 LOCAL_SHARED_LIBRARIES :=     		\
 	libcutils             			\
@@ -44,25 +38,31 @@ LOCAL_SHARED_LIBRARIES :=     		\
 	libstagefright_foundation       \
 	libgui                          \
 	libdl                           \
-	libaah_rtp
+    libstagefright_wfd
 
 ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
+LOCAL_SRC_FILES+= \
+    CedarPlayer.cpp       		\
+    CedarAPlayerWrapper.cpp		\
+    SimpleMediaFormatProbe.cpp	\
+    MovAvInfoDetect.cpp
+
 LOCAL_SHARED_LIBRARIES += \
 	libCedarX           			\
 	libCedarA
 endif
 
-
 LOCAL_STATIC_LIBRARIES := \
         libstagefright_nuplayer                 \
         libstagefright_rtsp                     \
 
-LOCAL_C_INCLUDES :=                                               \
-	$(call include-path-for, graphics corecg)                       \
-	$(TOP)/frameworks/av/media/libstagefright/include               \
-	$(TOP)/frameworks/av/media/libstagefright/rtsp                  \
-	$(TOP)/frameworks/native/include/media/openmax                  \
-	$(TOP)/external/tremolo/Tremolo                                 \
+LOCAL_C_INCLUDES :=                                                 \
+    $(call include-path-for, graphics corecg)                       \
+    $(TOP)/frameworks/av/media/libstagefright/include               \
+    $(TOP)/frameworks/av/media/libstagefright/rtsp                  \
+    $(TOP)/frameworks/av/media/libstagefright/wifi-display          \
+    $(TOP)/frameworks/native/include/media/openmax                  \
+    $(TOP)/external/tremolo/Tremolo                                 \
 
 ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
 LOCAL_C_INCLUDES +=  \
@@ -88,4 +88,3 @@ LOCAL_MODULE:= libmediaplayerservice
 include $(BUILD_SHARED_LIBRARY)
 
 include $(call all-makefiles-under,$(LOCAL_PATH))
-

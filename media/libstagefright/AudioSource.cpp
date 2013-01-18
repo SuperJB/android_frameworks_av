@@ -25,6 +25,7 @@
 #include <media/stagefright/MediaDefs.h>
 #include <media/stagefright/MetaData.h>
 #include <media/stagefright/foundation/ADebug.h>
+#include <media/stagefright/foundation/ALooper.h>
 #include <cutils/properties.h>
 #include <stdlib.h>
 
@@ -42,7 +43,7 @@ static void AudioRecordCallbackFunction(int event, void *user, void *info) {
     AudioSource *source = (AudioSource *) user;
     switch (event) {
         case AudioRecord::EVENT_MORE_DATA: {
-            source->dataCallbackTimestamp(*((AudioRecord::Buffer *) info), systemTime() / 1000);
+            source->dataCallback(*((AudioRecord::Buffer *) info));
             break;
         }
         case AudioRecord::EVENT_OVERRUN: {
@@ -57,17 +58,16 @@ static void AudioRecordCallbackFunction(int event, void *user, void *info) {
 
 AudioSource::AudioSource(
         audio_source_t inputSource, uint32_t sampleRate, uint32_t channelCount)
-    : mStarted(false),
+    : mRecord(NULL),
+      mStarted(false),
       mSampleRate(sampleRate),
       mPrevSampleTimeUs(0),
       mNumFramesReceived(0),
-      mNumClientOwnedBuffers(0)
 #ifdef QCOM_HARDWARE
-      ,mFormat(AUDIO_FORMAT_PCM_16_BIT),
-      mMime(MEDIA_MIMETYPE_AUDIO_RAW) 
+      mFormat(AUDIO_FORMAT_PCM_16_BIT),
+      mMime(MEDIA_MIMETYPE_AUDIO_RAW),
 #endif
-    {
-
+      mNumClientOwnedBuffers(0) {
     ALOGV("sampleRate: %d, channelCount: %d", sampleRate, channelCount);
     CHECK(channelCount == 1 || channelCount == 2);
 
@@ -75,7 +75,7 @@ AudioSource::AudioSource(
     status_t status = AudioRecord::getMinFrameCount(&minFrameCount,
                                            sampleRate,
                                            AUDIO_FORMAT_PCM_16_BIT,
-                                           channelCount);
+                                           audio_channel_in_mask_from_count(channelCount));
 
 #ifdef QCOM_HARDWARE
     if ( NO_ERROR != AudioSystem::getInputBufferSize(
@@ -99,10 +99,6 @@ AudioSource::AudioSource(
             bufCount++;
         }
 
-        AudioRecord::record_flags flags = (AudioRecord::record_flags)
-                        (AudioRecord::RECORD_AGC_ENABLE |
-                         AudioRecord::RECORD_NS_ENABLE  |
-                         AudioRecord::RECORD_IIR_ENABLE);
         mRecord = new AudioRecord(
                     inputSource, sampleRate, AUDIO_FORMAT_PCM_16_BIT,
                     audio_channel_in_mask_from_count(channelCount),
@@ -111,7 +107,6 @@ AudioSource::AudioSource(
 #else
                     bufCount * frameCount,
 #endif
-                    flags,
                     AudioRecordCallbackFunction,
                     this,
                     frameCount);
@@ -160,17 +155,13 @@ AudioSource::AudioSource( audio_source_t inputSource, const sp<MetaData>& meta )
     }
 
     CHECK(channels == 1 || channels == 2);
-    AudioRecord::record_flags flags = (AudioRecord::record_flags)
-                    (AudioRecord::RECORD_AGC_ENABLE |
-                     AudioRecord::RECORD_NS_ENABLE  |
-                     AudioRecord::RECORD_IIR_ENABLE);
 
     mRecord = new AudioRecord(
                 inputSource, sampleRate, mFormat,
                 channels > 1? AUDIO_CHANNEL_IN_STEREO:
                 AUDIO_CHANNEL_IN_MONO,
                 4*mMaxBufferSize/channels/frameSize,
-                flags,AudioRecordCallbackFunction,
+                AudioRecordCallbackFunction,
                 this);
     mInitCheck = mRecord->initCheck();
 }
@@ -375,8 +366,9 @@ void AudioSource::signalBufferReturned(MediaBuffer *buffer) {
     return;
 }
 
-status_t AudioSource::dataCallbackTimestamp(
-        const AudioRecord::Buffer& audioBuffer, int64_t timeUs) {
+status_t AudioSource::dataCallback(const AudioRecord::Buffer& audioBuffer) {
+    int64_t timeUs = systemTime() / 1000ll;
+
     ALOGV("dataCallbackTimestamp: %lld us", timeUs);
     Mutex::Autolock autoLock(mLock);
     if (!mStarted) {
@@ -400,6 +392,7 @@ status_t AudioSource::dataCallbackTimestamp(
             // Assume latency is constant.
             mStartTimeUs += mRecord->latency() * 1000;
         }
+
         mPrevSampleTimeUs = mStartTimeUs;
     }
 

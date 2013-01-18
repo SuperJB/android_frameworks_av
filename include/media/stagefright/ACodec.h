@@ -25,6 +25,8 @@
 #include <media/stagefright/SkipCutBuffer.h>
 #include <OMX_Audio.h>
 
+#define TRACK_BUFFER_TIMING     0
+
 namespace android {
 
 struct ABuffer;
@@ -55,6 +57,8 @@ struct ACodec : public AHierarchicalStateMachine {
     void initiateAllocateComponent(const sp<AMessage> &msg);
     void initiateConfigureComponent(const sp<AMessage> &msg);
     void initiateStart();
+
+    void signalRequestIDRFrame();
 
     struct PortDescription : public RefBase {
         size_t countBuffers();
@@ -103,6 +107,7 @@ private:
         kWhatAllocateComponent       = 'allo',
         kWhatConfigureComponent      = 'conf',
         kWhatStart                   = 'star',
+        kWhatRequestIDRFrame         = 'ridr',
     };
 
     enum {
@@ -129,6 +134,15 @@ private:
         sp<ABuffer> mData;
         sp<GraphicBuffer> mGraphicBuffer;
     };
+
+#if TRACK_BUFFER_TIMING
+    struct BufferStats {
+        int64_t mEmptyBufferTimeUs;
+        int64_t mFillBufferDoneTimeUs;
+    };
+
+    KeyedVector<int64_t, BufferStats> mBufferStats;
+#endif
 
     sp<AMessage> mNotify;
 
@@ -243,7 +257,10 @@ private:
     status_t setupAVCEncoderParameters(const sp<AMessage> &msg);
 
     status_t verifySupportForProfileAndLevel(int32_t profile, int32_t level);
-    status_t configureBitrate(int32_t bitrate);
+
+    status_t configureBitrate(
+            int32_t bitrate, OMX_VIDEO_CONTROLRATETYPE bitrateMode);
+
     status_t setupErrorCorrectionParameters();
 
     status_t initNativeWindow();
@@ -269,6 +286,9 @@ private:
 #ifdef QCOM_HARDWARE
     sp<FlushingOutputState> mFlushingOutputState;
 #endif
+
+    status_t requestIDRFrame();
+
     DISALLOW_EVIL_CONSTRUCTORS(ACodec);
 };
 

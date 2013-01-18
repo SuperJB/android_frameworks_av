@@ -54,6 +54,11 @@ status_t AudioTrack::getMinFrameCount(
         audio_stream_type_t streamType,
         uint32_t sampleRate)
 {
+    if (frameCount == NULL) return BAD_VALUE;
+
+    // default to 0 in case of error
+    *frameCount = 0;
+
     // FIXME merge with similar code in createTrack_l(), except we're missing
     //       some information here that is available in createTrack_l():
     //          audio_io_handle_t output
@@ -134,7 +139,7 @@ AudioTrack::AudioTrack(
         audio_stream_type_t streamType,
         uint32_t sampleRate,
         audio_format_t format,
-        int channelMask,
+        audio_channel_mask_t channelMask,
         int frameCount,
         audio_output_flags_t flags,
         callback_t cbf,
@@ -175,7 +180,8 @@ AudioTrack::AudioTrack(
       mObserver(NULL)
 #endif
 {
-    mStatus = set((audio_stream_type_t)streamType, sampleRate, (audio_format_t)format, channelMask,
+    mStatus = set((audio_stream_type_t)streamType, sampleRate, (audio_format_t)format,
+            (audio_channel_mask_t) channelMask,
             frameCount, (audio_output_flags_t)flags, cbf, user, notificationFrames,
             0 /*sharedBuffer*/, false /*threadCanCallJava*/, sessionId);
 }
@@ -184,7 +190,7 @@ AudioTrack::AudioTrack(
         audio_stream_type_t streamType,
         uint32_t sampleRate,
         audio_format_t format,
-        int channelMask,
+        audio_channel_mask_t channelMask,
         const sp<IMemory>& sharedBuffer,
         audio_output_flags_t flags,
         callback_t cbf,
@@ -242,7 +248,7 @@ status_t AudioTrack::set(
         audio_stream_type_t streamType,
         uint32_t sampleRate,
         audio_format_t format,
-        int channelMask,
+        audio_channel_mask_t channelMask,
         int frameCount,
         audio_output_flags_t flags,
         callback_t cbf,
@@ -318,7 +324,7 @@ status_t AudioTrack::set(
 #endif
 
     if (!audio_is_output_channel(channelMask)) {
-        ALOGE("Invalid channel mask");
+        ALOGE("Invalid channel mask %#x", channelMask);
         return BAD_VALUE;
     }
     uint32_t channelCount = popcount(channelMask);
@@ -406,7 +412,7 @@ status_t AudioTrack::set(
     mStatus = NO_ERROR;
     mStreamType = streamType;
     mFormat = format;
-    mChannelMask = (uint32_t)channelMask;
+    mChannelMask = channelMask;
     mChannelCount = channelCount;
 
     mMuted = false;
@@ -509,7 +515,6 @@ void AudioTrack::start()
     }
 #endif
     sp<AudioTrackThread> t = mAudioTrackThread;
-    status_t status = NO_ERROR;
 
     ALOGV("start %p", this);
 
@@ -537,6 +542,7 @@ void AudioTrack::start()
         }
 
         ALOGV("start %p before lock cblk %p", this, mCblk);
+        status_t status = NO_ERROR;
         if (!(cblk->flags & CBLK_INVALID_MSK)) {
             cblk->lock.unlock();
             ALOGV("mAudioTrack->start()");
@@ -943,7 +949,7 @@ status_t AudioTrack::createTrack_l(
         audio_stream_type_t streamType,
         uint32_t sampleRate,
         audio_format_t format,
-        uint32_t channelMask,
+        audio_channel_mask_t channelMask,
         int frameCount,
         audio_output_flags_t flags,
         const sp<IMemory>& sharedBuffer,
@@ -1342,7 +1348,7 @@ status_t TimedAudioTrack::allocateTimedBuffer(size_t size, sp<IMemory>* buffer)
 
     // If the track is not invalid already, try to allocate a buffer.  alloc
     // fails indicating that the server is dead, flag the track as invalid so
-    // we can attempt to restore in in just a bit.
+    // we can attempt to restore in just a bit.
     if (!(mCblk->flags & CBLK_INVALID_MSK)) {
         result = mAudioTrack->allocateTimedBuffer(size, buffer);
         if (result == DEAD_OBJECT) {
@@ -1639,7 +1645,7 @@ status_t AudioTrack::dump(int fd, const Vector<String16>& args) const
     result.append(" AudioTrack::dump\n");
     snprintf(buffer, 255, "  stream type(%d), left - right volume(%f, %f)\n", mStreamType, mVolume[0], mVolume[1]);
     result.append(buffer);
-    snprintf(buffer, 255, "  format(%d), channel count(%d), frame count(%d)\n", mFormat, mChannelCount, mCblk->frameCount);
+    snprintf(buffer, 255, "  format(%d), channel count(%d), frame count(%d)\n", mFormat, mChannelCount, (mCblk == 0) ? 0 : mCblk->frameCount);
     result.append(buffer);
     snprintf(buffer, 255, "  sample rate(%d), status(%d), muted(%d)\n", (mCblk == 0) ? 0 : mCblk->sampleRate, mStatus, mMuted);
     result.append(buffer);
@@ -1691,15 +1697,6 @@ bool AudioTrack::AudioTrackThread::threadLoop()
         pause();
     }
     return true;
-}
-
-status_t AudioTrack::AudioTrackThread::readyToRun()
-{
-    return NO_ERROR;
-}
-
-void AudioTrack::AudioTrackThread::onFirstRef()
-{
 }
 
 void AudioTrack::AudioTrackThread::requestExit()

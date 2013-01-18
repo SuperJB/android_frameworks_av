@@ -68,9 +68,6 @@ enum player_type {
     CEDARX_PLAYER = 8,
     CEDARA_PLAYER = 9,
 #endif
-
-    AAH_RX_PLAYER = 100,
-    AAH_TX_PLAYER = 101,
 };
 
 #ifdef ALLWINNER
@@ -186,12 +183,15 @@ public:
     virtual status_t    setParameter(int key, const Parcel &request) = 0;
     virtual status_t    getParameter(int key, Parcel *reply) = 0;
 
-    // Right now, only the AAX TX player supports this functionality.  For now,
-    // provide a default implementation which indicates a lack of support for
-    // this functionality to make life easier for all of the other media player
-    // maintainers out there.
+    // default no-op implementation of optional extensions
     virtual status_t setRetransmitEndpoint(const struct sockaddr_in* endpoint) {
         return INVALID_OPERATION;
+    }
+    virtual status_t getRetransmitEndpoint(struct sockaddr_in* endpoint) {
+        return INVALID_OPERATION;
+    }
+    virtual status_t setNextPlayer(const sp<MediaPlayerBase>& next) {
+        return OK;
     }
 
     // Invoke a generic method on the player by using opaque parcels

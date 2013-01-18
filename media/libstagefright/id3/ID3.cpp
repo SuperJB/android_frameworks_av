@@ -30,7 +30,7 @@ namespace android {
 
 static const size_t kMaxMetadataSize = 3 * 1024 * 1024;
 
-ID3::ID3(const sp<DataSource> &source)
+ID3::ID3(const sp<DataSource> &source, bool ignoreV1)
     : mIsValid(false),
       mData(NULL),
       mSize(0),
@@ -38,7 +38,7 @@ ID3::ID3(const sp<DataSource> &source)
       mVersion(ID3_UNKNOWN) {
     mIsValid = parseV2(source);
 
-    if (!mIsValid) {
+    if (!mIsValid && !ignoreV1) {
         mIsValid = parseV1(source);
     }
 }
@@ -743,7 +743,8 @@ static size_t StringSize(const uint8_t *start, uint8_t encoding) {
         n += 2;
     }
 
-    return n;
+    // Add size of null termination.
+    return n + 2;
 }
 
 const void *

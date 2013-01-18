@@ -302,6 +302,20 @@ status_t MediaCodec::getOutputFormat(sp<AMessage> *format) const {
     return OK;
 }
 
+status_t MediaCodec::getName(AString *name) const {
+    sp<AMessage> msg = new AMessage(kWhatGetName, id());
+
+    sp<AMessage> response;
+    status_t err;
+    if ((err = PostAndAwaitResponse(msg, &response)) != OK) {
+        return err;
+    }
+
+    CHECK(response->findString("name", name));
+
+    return OK;
+}
+
 status_t MediaCodec::getInputBuffers(Vector<sp<ABuffer> > *buffers) const {
     sp<AMessage> msg = new AMessage(kWhatGetBuffers, id());
     msg->setInt32("portIndex", kPortIndexInput);
@@ -325,6 +339,18 @@ status_t MediaCodec::flush() {
 
     sp<AMessage> response;
     return PostAndAwaitResponse(msg, &response);
+}
+
+status_t MediaCodec::requestIDRFrame() {
+    (new AMessage(kWhatRequestIDRFrame, id()))->post();
+
+    return OK;
+}
+
+void MediaCodec::requestActivityNotification(const sp<AMessage> &notify) {
+    sp<AMessage> msg = new AMessage(kWhatRequestActivityNotification, id());
+    msg->setMessage("notify", notify);
+    msg->post();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -492,6 +518,7 @@ void MediaCodec::onMessageReceived(const sp<AMessage> &msg) {
                             sendErrorReponse = false;
 
                             mFlags |= kFlagStickyError;
+                            postActivityNotificationIfPossible();
 
                             cancelPendingDequeueOperations();
                             break;
@@ -502,6 +529,7 @@ void MediaCodec::onMessageReceived(const sp<AMessage> &msg) {
                             sendErrorReponse = false;
 
                             mFlags |= kFlagStickyError;
+                            postActivityNotificationIfPossible();
                             break;
                         }
                     }
@@ -520,16 +548,15 @@ void MediaCodec::onMessageReceived(const sp<AMessage> &msg) {
                     CHECK_EQ(mState, INITIALIZING);
                     setState(INITIALIZED);
 
-                    AString componentName;
-                    CHECK(msg->findString("componentName", &componentName));
+                    CHECK(msg->findString("componentName", &mComponentName));
 
-                    if (componentName.startsWith("OMX.google.")) {
+                    if (mComponentName.startsWith("OMX.google.")) {
                         mFlags |= kFlagIsSoftwareCodec;
                     } else {
                         mFlags &= ~kFlagIsSoftwareCodec;
                     }
 
-                    if (componentName.endsWith(".secure")) {
+                    if (mComponentName.endsWith(".secure")) {
                         mFlags |= kFlagIsSecure;
                     } else {
                         mFlags &= ~kFlagIsSecure;
@@ -594,6 +621,7 @@ void MediaCodec::onMessageReceived(const sp<AMessage> &msg) {
                             (new AMessage)->postReply(mReplyID);
                         } else {
                             mFlags |= kFlagOutputBuffersChanged;
+                            postActivityNotificationIfPossible();
                         }
                     }
                     break;
@@ -632,6 +660,7 @@ void MediaCodec::onMessageReceived(const sp<AMessage> &msg) {
 
                     mOutputFormat = msg;
                     mFlags |= kFlagOutputFormatChanged;
+                    postActivityNotificationIfPossible();
                     break;
                 }
 
@@ -663,6 +692,8 @@ void MediaCodec::onMessageReceived(const sp<AMessage> &msg) {
                                   err);
 
                             mFlags |= kFlagStickyError;
+                            postActivityNotificationIfPossible();
+
                             cancelPendingDequeueOperations();
                         }
                         break;
@@ -674,6 +705,8 @@ void MediaCodec::onMessageReceived(const sp<AMessage> &msg) {
                         ++mDequeueInputTimeoutGeneration;
                         mFlags &= ~kFlagDequeueInputPending;
                         mDequeueInputReplyID = 0;
+                    } else {
+                        postActivityNotificationIfPossible();
                     }
                     break;
                 }
@@ -703,7 +736,10 @@ void MediaCodec::onMessageReceived(const sp<AMessage> &msg) {
                         ++mDequeueOutputTimeoutGeneration;
                         mFlags &= ~kFlagDequeueOutputPending;
                         mDequeueOutputReplyID = 0;
+                    } else {
+                        postActivityNotificationIfPossible();
                     }
+
                     break;
                 }
 
@@ -1118,7 +1154,8 @@ void MediaCodec::onMessageReceived(const sp<AMessage> &msg) {
             CHECK(msg->senderAwaitsResponse(&replyID));
 
             if ((mState != STARTED && mState != FLUSHING)
-                    || (mFlags & kFlagStickyError)) {
+                    || (mFlags & kFlagStickyError)
+                    || mOutputFormat == NULL) {
                 sp<AMessage> response = new AMessage;
                 response->setInt32("err", INVALID_OPERATION);
 
@@ -1128,6 +1165,40 @@ void MediaCodec::onMessageReceived(const sp<AMessage> &msg) {
 
             sp<AMessage> response = new AMessage;
             response->setMessage("format", mOutputFormat);
+            response->postReply(replyID);
+            break;
+        }
+
+        case kWhatRequestIDRFrame:
+        {
+            mCodec->signalRequestIDRFrame();
+            break;
+        }
+
+        case kWhatRequestActivityNotification:
+        {
+            CHECK(mActivityNotify == NULL);
+            CHECK(msg->findMessage("notify", &mActivityNotify));
+
+            postActivityNotificationIfPossible();
+            break;
+        }
+
+        case kWhatGetName:
+        {
+            uint32_t replyID;
+            CHECK(msg->senderAwaitsResponse(&replyID));
+
+            if (mComponentName.empty()) {
+                sp<AMessage> response = new AMessage;
+                response->setInt32("err", INVALID_OPERATION);
+
+                response->postReply(replyID);
+                break;
+            }
+
+            sp<AMessage> response = new AMessage;
+            response->setString("name", mComponentName.c_str());
             response->postReply(replyID);
             break;
         }
@@ -1197,6 +1268,12 @@ void MediaCodec::setState(State newState) {
         mFlags &= ~kFlagOutputFormatChanged;
         mFlags &= ~kFlagOutputBuffersChanged;
         mFlags &= ~kFlagStickyError;
+
+        mActivityNotify.clear();
+    }
+
+    if (newState == UNINITIALIZED) {
+        mComponentName.clear();
     }
 
     mState = newState;
@@ -1462,6 +1539,21 @@ status_t MediaCodec::setNativeWindow(
     }
 
     return OK;
+}
+
+void MediaCodec::postActivityNotificationIfPossible() {
+    if (mActivityNotify == NULL) {
+        return;
+    }
+
+    if ((mFlags & (kFlagStickyError
+                    | kFlagOutputBuffersChanged
+                    | kFlagOutputFormatChanged))
+            || !mAvailPortBuffers[kPortIndexInput].empty()
+            || !mAvailPortBuffers[kPortIndexOutput].empty()) {
+        mActivityNotify->post();
+        mActivityNotify.clear();
+    }
 }
 
 }  // namespace android

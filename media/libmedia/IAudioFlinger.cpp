@@ -33,7 +33,7 @@ enum {
     CREATE_TRACK = IBinder::FIRST_CALL_TRANSACTION,
     OPEN_RECORD,
     SAMPLE_RATE,
-    CHANNEL_COUNT,
+    CHANNEL_COUNT,  // obsolete
     FORMAT,
     FRAME_COUNT,
     LATENCY,
@@ -76,8 +76,10 @@ enum {
 #endif
     LOAD_HW_MODULE,
 #ifdef QCOM_HARDWARE
-    CREATE_DIRECT_TRACK
+    CREATE_DIRECT_TRACK,
 #endif
+    GET_PRIMARY_OUTPUT_SAMPLING_RATE,
+    GET_PRIMARY_OUTPUT_FRAME_COUNT,
 };
 
 class BpAudioFlinger : public BpInterface<IAudioFlinger>
@@ -93,7 +95,7 @@ public:
                                 audio_stream_type_t streamType,
                                 uint32_t sampleRate,
                                 audio_format_t format,
-                                uint32_t channelMask,
+                                audio_channel_mask_t channelMask,
                                 int frameCount,
                                 track_flags_t flags,
                                 const sp<IMemory>& sharedBuffer,
@@ -130,7 +132,6 @@ public:
             }
             lStatus = reply.readInt32();
             track = interface_cast<IAudioTrack>(reply.readStrongBinder());
-#ifdef QCOM_HARDWARE
         }
         if (status) {
             *status = lStatus;
@@ -138,6 +139,7 @@ public:
         return track;
     }
 
+#ifdef QCOM_HARDWARE
     virtual sp<IDirectTrack> createDirectTrack(
                                 pid_t pid,
                                 uint32_t sampleRate,
@@ -185,9 +187,10 @@ public:
                                 audio_io_handle_t input,
                                 uint32_t sampleRate,
                                 audio_format_t format,
-                                uint32_t channelMask,
+                                audio_channel_mask_t channelMask,
                                 int frameCount,
                                 track_flags_t flags,
+                                pid_t tid,
                                 int *sessionId,
                                 status_t *status)
     {
@@ -201,6 +204,7 @@ public:
         data.writeInt32(channelMask);
         data.writeInt32(frameCount);
         data.writeInt32(flags);
+        data.writeInt32((int32_t) tid);
         int lSessionId = 0;
         if (sessionId != NULL) {
             lSessionId = *sessionId;
@@ -232,6 +236,7 @@ public:
         return reply.readInt32();
     }
 
+#if 0
     virtual int channelCount(audio_io_handle_t output) const
     {
         Parcel data, reply;
@@ -240,6 +245,7 @@ public:
         remote()->transact(CHANNEL_COUNT, data, &reply);
         return reply.readInt32();
     }
+#endif
 
     virtual audio_format_t format(audio_io_handle_t output) const
     {
@@ -397,13 +403,14 @@ public:
         remote()->transact(REGISTER_CLIENT, data, &reply);
     }
 
-    virtual size_t getInputBufferSize(uint32_t sampleRate, audio_format_t format, int channelCount) const
+    virtual size_t getInputBufferSize(uint32_t sampleRate, audio_format_t format,
+            audio_channel_mask_t channelMask) const
     {
         Parcel data, reply;
         data.writeInterfaceToken(IAudioFlinger::getInterfaceDescriptor());
         data.writeInt32(sampleRate);
         data.writeInt32(format);
-        data.writeInt32(channelCount);
+        data.writeInt32(channelMask);
         remote()->transact(GET_INPUTBUFFERSIZE, data, &reply);
         return reply.readInt32();
     }
@@ -743,6 +750,23 @@ public:
         remote()->transact(LOAD_HW_MODULE, data, &reply);
         return (audio_module_handle_t) reply.readInt32();
     }
+
+    virtual int32_t getPrimaryOutputSamplingRate()
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioFlinger::getInterfaceDescriptor());
+        remote()->transact(GET_PRIMARY_OUTPUT_SAMPLING_RATE, data, &reply);
+        return reply.readInt32();
+    }
+
+    virtual int32_t getPrimaryOutputFrameCount()
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioFlinger::getInterfaceDescriptor());
+        remote()->transact(GET_PRIMARY_OUTPUT_FRAME_COUNT, data, &reply);
+        return reply.readInt32();
+    }
+
 };
 
 IMPLEMENT_META_INTERFACE(AudioFlinger, "android.media.IAudioFlinger");
@@ -759,7 +783,7 @@ status_t BnAudioFlinger::onTransact(
             int streamType = data.readInt32();
             uint32_t sampleRate = data.readInt32();
             audio_format_t format = (audio_format_t) data.readInt32();
-            int channelCount = data.readInt32();
+            audio_channel_mask_t channelMask = data.readInt32();
             size_t bufferCount = data.readInt32();
             track_flags_t flags = (track_flags_t) data.readInt32();
             sp<IMemory> buffer = interface_cast<IMemory>(data.readStrongBinder());
@@ -769,7 +793,7 @@ status_t BnAudioFlinger::onTransact(
             status_t status;
             sp<IAudioTrack> track = createTrack(pid,
                     (audio_stream_type_t) streamType, sampleRate, format,
-                    channelCount, bufferCount, flags, buffer, output, tid, &sessionId, &status);
+                    channelMask, bufferCount, flags, buffer, output, tid, &sessionId, &status);
             reply->writeInt32(sessionId);
             reply->writeInt32(status);
             reply->writeStrongBinder(track->asBinder());
@@ -801,13 +825,14 @@ status_t BnAudioFlinger::onTransact(
             audio_io_handle_t input = (audio_io_handle_t) data.readInt32();
             uint32_t sampleRate = data.readInt32();
             audio_format_t format = (audio_format_t) data.readInt32();
-            int channelCount = data.readInt32();
+            audio_channel_mask_t channelMask = data.readInt32();
             size_t bufferCount = data.readInt32();
             track_flags_t flags = (track_flags_t) data.readInt32();
+            pid_t tid = (pid_t) data.readInt32();
             int sessionId = data.readInt32();
             status_t status;
             sp<IAudioRecord> record = openRecord(pid, input,
-                    sampleRate, format, channelCount, bufferCount, flags, &sessionId, &status);
+                    sampleRate, format, channelMask, bufferCount, flags, tid, &sessionId, &status);
             reply->writeInt32(sessionId);
             reply->writeInt32(status);
             reply->writeStrongBinder(record->asBinder());
@@ -818,11 +843,13 @@ status_t BnAudioFlinger::onTransact(
             reply->writeInt32( sampleRate((audio_io_handle_t) data.readInt32()) );
             return NO_ERROR;
         } break;
+#if 0
         case CHANNEL_COUNT: {
             CHECK_INTERFACE(IAudioFlinger, data, reply);
             reply->writeInt32( channelCount((audio_io_handle_t) data.readInt32()) );
             return NO_ERROR;
         } break;
+#endif
         case FORMAT: {
             CHECK_INTERFACE(IAudioFlinger, data, reply);
             reply->writeInt32( format((audio_io_handle_t) data.readInt32()) );
@@ -927,8 +954,8 @@ status_t BnAudioFlinger::onTransact(
             CHECK_INTERFACE(IAudioFlinger, data, reply);
             uint32_t sampleRate = data.readInt32();
             audio_format_t format = (audio_format_t) data.readInt32();
-            int channelCount = data.readInt32();
-            reply->writeInt32( getInputBufferSize(sampleRate, format, channelCount) );
+            audio_channel_mask_t channelMask = data.readInt32();
+            reply->writeInt32( getInputBufferSize(sampleRate, format, channelMask) );
             return NO_ERROR;
         } break;
         case OPEN_OUTPUT: {
@@ -1124,6 +1151,16 @@ status_t BnAudioFlinger::onTransact(
         case LOAD_HW_MODULE: {
             CHECK_INTERFACE(IAudioFlinger, data, reply);
             reply->writeInt32(loadHwModule(data.readCString()));
+            return NO_ERROR;
+        } break;
+        case GET_PRIMARY_OUTPUT_SAMPLING_RATE: {
+            CHECK_INTERFACE(IAudioFlinger, data, reply);
+            reply->writeInt32(getPrimaryOutputSamplingRate());
+            return NO_ERROR;
+        } break;
+        case GET_PRIMARY_OUTPUT_FRAME_COUNT: {
+            CHECK_INTERFACE(IAudioFlinger, data, reply);
+            reply->writeInt32(getPrimaryOutputFrameCount());
             return NO_ERROR;
         } break;
         default:

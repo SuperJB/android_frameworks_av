@@ -244,6 +244,7 @@ const char CameraParameters::SCENE_MODE_OFF[] = "off";
 const char CameraParameters::SCENE_DETECT_OFF[] = "off";
 const char CameraParameters::SCENE_DETECT_ON[] = "on";
 #endif
+const char CameraParameters::SCENE_MODE_HDR[] = "hdr";
 
 // Formats for setPreviewFormat and setPictureFormat.
 const char CameraParameters::PIXEL_FORMAT_YUV422SP[] = "yuv422sp";
@@ -262,6 +263,7 @@ const char CameraParameters::PIXEL_FORMAT_RAW[] = "raw";
 const char CameraParameters::PIXEL_FORMAT_YV12[] = "yuv420p";
 const char CameraParameters::PIXEL_FORMAT_NV12[] = "nv12";
 #endif
+const char CameraParameters::PIXEL_FORMAT_ANDROID_OPAQUE[] = "android-opaque";
 
 // Values for focus mode settings.
 const char CameraParameters::FOCUS_MODE_AUTO[] = "auto";
@@ -476,7 +478,7 @@ void CameraParameters::set(const char *key, const char *value)
 void CameraParameters::set(const char *key, int value)
 {
     char str[16];
-    snprintf(str, sizeof(str), "%d", value);
+    sprintf(str, "%d", value);
     set(key, str);
 }
 
@@ -595,7 +597,7 @@ static void parseSizesList(const char *sizesStr, Vector<Size> &sizes)
 void CameraParameters::setPreviewSize(int width, int height)
 {
     char str[32];
-    snprintf(str, sizeof(str), "%dx%d", width, height);
+    sprintf(str, "%dx%d", width, height);
     set(KEY_PREVIEW_SIZE, str);
 }
 

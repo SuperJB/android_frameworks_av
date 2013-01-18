@@ -17,44 +17,16 @@ include $(BUILD_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
 
-LOCAL_SRC_FILES := \
-    AudioBufferProviderSource.cpp   \
-    AudioStreamOutSink.cpp          \
-    AudioStreamInSource.cpp         \
-    NBAIO.cpp                       \
-    MonoPipe.cpp                    \
-    MonoPipeReader.cpp              \
-    Pipe.cpp                        \
-    PipeReader.cpp                  \
-    roundup.c                       \
-    SourceAudioBufferProvider.cpp
-
-# libsndfile license is incompatible; uncomment to use for local debug only
-#LOCAL_SRC_FILES += LibsndfileSink.cpp LibsndfileSource.cpp
-#LOCAL_C_INCLUDES += path/to/libsndfile/src
-#LOCAL_STATIC_LIBRARIES += libsndfile
-
-# uncomment for systrace
-# LOCAL_CFLAGS += -DATRACE_TAG=ATRACE_TAG_AUDIO
-
-ifeq ($(TARGET_BOARD_PLATFORM),exDroid)
-	LOCAL_CFLAGS += -DALLWINNER
-endif
-
-LOCAL_MODULE := libnbaio
-
-include $(BUILD_STATIC_LIBRARY)
-
-include $(CLEAR_VARS)
-
 LOCAL_SRC_FILES:=               \
     AudioFlinger.cpp            \
     AudioMixer.cpp.arm          \
     AudioResampler.cpp.arm      \
     AudioPolicyService.cpp      \
-    ServiceUtilities.cpp
-#   AudioResamplerSinc.cpp.arm
-#   AudioResamplerCubic.cpp.arm
+    ServiceUtilities.cpp        \
+    AudioResamplerSinc.cpp.arm
+
+# uncomment to enable AudioResampler::MED_QUALITY
+# LOCAL_SRC_FILES += AudioResamplerCubic.cpp.arm
 
 LOCAL_SRC_FILES += StateQueue.cpp
 
@@ -74,6 +46,7 @@ LOCAL_SHARED_LIBRARIES := \
     libbinder \
     libmedia \
     libmedia_native \
+    libnbaio \
     libhardware \
     libhardware_legacy \
     libeffects \
@@ -82,7 +55,6 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_STATIC_LIBRARIES := \
     libscheduling_policy \
-    libnbaio \
     libcpustats \
     libmedia_helper
 
@@ -101,7 +73,7 @@ endif
 
 LOCAL_CFLAGS += -DSTATE_QUEUE_INSTANTIATIONS='"StateQueueInstantiations.cpp"'
 
-LOCAL_CFLAGS += -DHAVE_REQUEST_PRIORITY -UFAST_TRACKS_AT_NON_NATIVE_SAMPLE_RATE -USOAKER
+LOCAL_CFLAGS += -UFAST_TRACKS_AT_NON_NATIVE_SAMPLE_RATE
 
 # uncomment for systrace
 # LOCAL_CFLAGS += -DATRACE_TAG=ATRACE_TAG_AUDIO
@@ -110,12 +82,17 @@ LOCAL_CFLAGS += -DHAVE_REQUEST_PRIORITY -UFAST_TRACKS_AT_NON_NATIVE_SAMPLE_RATE 
 # 47.5 seconds at 44.1 kHz, 8 megabytes
 # LOCAL_CFLAGS += -DTEE_SINK_FRAMES=0x200000
 
-# uncomment to enable the audio watchdog
-LOCAL_SRC_FILES += AudioWatchdog.cpp
-#LOCAL_CFLAGS += -DAUDIO_WATCHDOG
+ifeq ($(BOARD_USES_QCOM_HARDWARE),true)
+	LOCAL_CFLAGS += -DQCOM_HARDWARE
+endif
+	LOCAL_CFLAGS += -DQCOM_HARDWARE
 
 ifeq ($(BOARD_HAS_SAMSUNG_VOLUME_BUG),true)
    LOCAL_CFLAGS += -DHAS_SAMSUNG_VOLUME_BUG
 endif
+# LOCAL_SRC_FILES += AudioWatchdog.cpp
+# LOCAL_CFLAGS += -DAUDIO_WATCHDOG
 
 include $(BUILD_SHARED_LIBRARY)
+
+include $(call all-makefiles-under,$(LOCAL_PATH))

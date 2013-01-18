@@ -45,9 +45,10 @@ struct NuPlayer::Renderer : public AHandler {
     void resume();
 
     enum {
-        kWhatEOS                = 'eos ',
-        kWhatFlushComplete      = 'fluC',
-        kWhatPosition           = 'posi',
+        kWhatEOS                 = 'eos ',
+        kWhatFlushComplete       = 'fluC',
+        kWhatPosition            = 'posi',
+        kWhatVideoRenderingStart = 'vdrd',
     };
 
 protected:
@@ -102,6 +103,7 @@ private:
 #ifdef QCOM_HARDWARE
     bool mWasPaused; // if paused then store the info
 #endif
+    bool mVideoRenderingStarted;
 
     int64_t mLastPositionUpdateUs;
     int64_t mVideoLateByUs;
@@ -123,6 +125,7 @@ private:
     void notifyFlushComplete(bool audio);
     void notifyPosition();
     void notifyVideoLateBy(int64_t lateByUs);
+    void notifyVideoRenderingStart();
 
     void flushQueue(List<QueueEntry> *queue);
     bool dropBufferWhileFlushing(bool audio, const sp<AMessage> &msg);

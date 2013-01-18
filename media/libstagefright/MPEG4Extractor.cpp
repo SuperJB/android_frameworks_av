@@ -15,10 +15,6 @@
  * limitations under the License.
  */
 
-/*--------------------------------------------------------------------------
-Copyright (c) 2012, Code Aurora Forum. All rights reserved.
---------------------------------------------------------------------------*/
-
 #define LOG_TAG "MPEG4Extractor"
 #include <utils/Log.h>
 
@@ -34,6 +30,7 @@ Copyright (c) 2012, Code Aurora Forum. All rights reserved.
 #include <string.h>
 
 #include <media/stagefright/foundation/ABitReader.h>
+#include <media/stagefright/foundation/ABuffer.h>
 #include <media/stagefright/foundation/ADebug.h>
 #include <media/stagefright/foundation/AMessage.h>
 #include <media/stagefright/DataSource.h>
@@ -430,7 +427,7 @@ char* MPEG4Extractor::getDrmTrackInfo(size_t trackID, int *len) {
 }
 
 // Reads an encoded integer 7 bits at a time until it encounters the high bit clear.
-int32_t readSize(off64_t offset,
+static int32_t readSize(off64_t offset,
         const sp<DataSource> DataSource, uint8_t *numOfBytes) {
     uint32_t size = 0;
     uint8_t data;
@@ -1413,18 +1410,15 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
 
         case FOURCC('a', 'v', 'c', 'C'):
         {
-            char buffer[1024];
-            if (chunk_data_size > (off64_t)sizeof(buffer)) {
-                return ERROR_BUFFER_TOO_SMALL;
-            }
+            sp<ABuffer> buffer = new ABuffer(chunk_data_size);
 
             if (mDataSource->readAt(
-                        data_offset, buffer, chunk_data_size) < chunk_data_size) {
+                        data_offset, buffer->data(), chunk_data_size) < chunk_data_size) {
                 return ERROR_IO;
             }
 
             mLastTrack->meta->setData(
-                    kKeyAVCC, kTypeAVCC, buffer, chunk_data_size);
+                    kKeyAVCC, kTypeAVCC, buffer->data(), chunk_data_size);
 
             *offset += chunk_size;
             break;
@@ -1646,18 +1640,15 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
             if (mFileMetaData != NULL) {
                 ALOGV("chunk_data_size = %lld and data_offset = %lld",
                         chunk_data_size, data_offset);
-                uint8_t *buffer = new uint8_t[chunk_data_size + 1];
+                sp<ABuffer> buffer = new ABuffer(chunk_data_size + 1);
                 if (mDataSource->readAt(
-                    data_offset, buffer, chunk_data_size) != (ssize_t)chunk_data_size) {
-                    delete[] buffer;
-                    buffer = NULL;
-
+                    data_offset, buffer->data(), chunk_data_size) != (ssize_t)chunk_data_size) {
                     return ERROR_IO;
                 }
                 const int kSkipBytesOfDataBox = 16;
                 mFileMetaData->setData(
                     kKeyAlbumArt, MetaData::TYPE_NONE,
-                    buffer + kSkipBytesOfDataBox, chunk_data_size - kSkipBytesOfDataBox);
+                    buffer->data() + kSkipBytesOfDataBox, chunk_data_size - kSkipBytesOfDataBox);
             }
 
             *offset += chunk_size;
@@ -1902,8 +1893,9 @@ status_t MPEG4Extractor::parseMetaData(off64_t offset, size_t size) {
         {
             if (size == 16 && flags == 0) {
                 char tmp[16];
-                sprintf(tmp, "%d/%d",
-                        (int)buffer[size - 5], (int)buffer[size - 3]);
+                uint16_t* pTrack = (uint16_t*)&buffer[10];
+                uint16_t* pTotalTracks = (uint16_t*)&buffer[12];
+                sprintf(tmp, "%d/%d", ntohs(*pTrack), ntohs(*pTotalTracks));
 
                 mFileMetaData->setCString(kKeyCDTrackNumber, tmp);
             }
@@ -1911,10 +1903,11 @@ status_t MPEG4Extractor::parseMetaData(off64_t offset, size_t size) {
         }
         case FOURCC('d', 'i', 's', 'k'):
         {
-            if (size == 14 && flags == 0) {
+            if ((size == 14 || size == 16) && flags == 0) {
                 char tmp[16];
-                sprintf(tmp, "%d/%d",
-                        (int)buffer[size - 3], (int)buffer[size - 1]);
+                uint16_t* pDisc = (uint16_t*)&buffer[10];
+                uint16_t* pTotalDiscs = (uint16_t*)&buffer[12];
+                sprintf(tmp, "%d/%d", ntohs(*pDisc), ntohs(*pTotalDiscs));
 
                 mFileMetaData->setCString(kKeyDiscNumber, tmp);
             }
@@ -1934,15 +1927,26 @@ status_t MPEG4Extractor::parseMetaData(off64_t offset, size_t size) {
                     mLastCommentData.setTo((const char *)buffer + 8);
                     break;
             }
-            if (mLastCommentMean == "com.apple.iTunes"
-                    && mLastCommentName == "iTunSMPB"
-                    && mLastCommentData.length() != 0) {
-                int32_t delay, padding;
-                if (sscanf(mLastCommentData,
-                           " %*x %x %x %*x", &delay, &padding) == 2) {
-                    mLastTrack->meta->setInt32(kKeyEncoderDelay, delay);
-                    mLastTrack->meta->setInt32(kKeyEncoderPadding, padding);
+
+            // Once we have a set of mean/name/data info, go ahead and process
+            // it to see if its something we are interested in.  Whether or not
+            // were are interested in the specific tag, make sure to clear out
+            // the set so we can be ready to process another tuple should one
+            // show up later in the file.
+            if ((mLastCommentMean.length() != 0) &&
+                (mLastCommentName.length() != 0) &&
+                (mLastCommentData.length() != 0)) {
+
+                if (mLastCommentMean == "com.apple.iTunes"
+                        && mLastCommentName == "iTunSMPB") {
+                    int32_t delay, padding;
+                    if (sscanf(mLastCommentData,
+                               " %*x %x %x %*x", &delay, &padding) == 2) {
+                        mLastTrack->meta->setInt32(kKeyEncoderDelay, delay);
+                        mLastTrack->meta->setInt32(kKeyEncoderPadding, padding);
+                    }
                 }
+
                 mLastCommentMean.clear();
                 mLastCommentName.clear();
                 mLastCommentData.clear();

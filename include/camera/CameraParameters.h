@@ -371,7 +371,7 @@ public:
     // Example value: "42.5". Read only.
     static const char KEY_VERTICAL_VIEW_ANGLE[];
     // Exposure compensation index. 0 means exposure is not adjusted.
-    // Example value: "0" or "5". Read/write.
+    // Example value: "-5" or "5". Read/write.
     static const char KEY_EXPOSURE_COMPENSATION[];
     // The maximum exposure compensation index (>=0).
     // Example value: "6". Read only.
@@ -380,7 +380,7 @@ public:
     // Example value: "-6". Read only.
     static const char KEY_MIN_EXPOSURE_COMPENSATION[];
     // The exposure compensation step. Exposure compensation index multiply by
-    // step eqals to EV. Ex: if exposure compensation index is 6 and step is
+    // step eqals to EV. Ex: if exposure compensation index is -6 and step is
     // 0.3333, EV is -2.
     // Example value: "0.333333333" or "0.5". Read only.
     static const char KEY_EXPOSURE_COMPENSATION_STEP[];
@@ -743,6 +743,10 @@ public:
     // Applications are looking for a barcode. Camera driver will be optimized
     // for barcode reading.
     static const char SCENE_MODE_BARCODE[];
+    // A high-dynamic range mode. In this mode, the HAL module will use a
+    // capture strategy that extends the dynamic range of the captured
+    // image in some fashion. Only the final image is returned.
+    static const char SCENE_MODE_HDR[];
 
     // Pixel color formats for KEY_PREVIEW_FORMAT, KEY_PICTURE_FORMAT,
     // and KEY_VIDEO_FRAME_FORMAT
@@ -763,11 +767,15 @@ public:
     // Raw bayer format used for images, which is 10 bit precision samples
     // stored in 16 bit words. The filter pattern is RGGB.
     static const char PIXEL_FORMAT_BAYER_RGGB[];
+
 #ifdef QCOM_HARDWARE
     static const char PIXEL_FORMAT_RAW[];
     static const char PIXEL_FORMAT_YV12[]; // NV21
     static const char PIXEL_FORMAT_NV12[]; //NV12
 #endif
+
+    // Pixel format is not known to the framework
+    static const char PIXEL_FORMAT_ANDROID_OPAQUE[];
 
     // Values for focus mode settings.
     // Auto-focus mode. Applications should call

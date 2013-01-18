@@ -18,20 +18,21 @@
 #include "include/AMRExtractor.h"
 
 #if CHROMIUM_AVAILABLE
-#include "include/DataUriSource.h"
+#include "include/chromium_http_stub.h"
 #endif
 
-#include "include/MP3Extractor.h"
-#include "include/MPEG4Extractor.h"
-#include "include/WAVExtractor.h"
-#include "include/OggExtractor.h"
-#include "include/MPEG2PSExtractor.h"
-#include "include/MPEG2TSExtractor.h"
-#include "include/NuCachedSource2.h"
-#include "include/HTTPBase.h"
+#include "include/AACExtractor.h"
 #include "include/DRMExtractor.h"
 #include "include/FLACExtractor.h"
-#include "include/AACExtractor.h"
+#include "include/FragmentedMP4Extractor.h"
+#include "include/HTTPBase.h"
+#include "include/MP3Extractor.h"
+#include "include/MPEG2PSExtractor.h"
+#include "include/MPEG2TSExtractor.h"
+#include "include/MPEG4Extractor.h"
+#include "include/NuCachedSource2.h"
+#include "include/OggExtractor.h"
+#include "include/WAVExtractor.h"
 #include "include/WVMExtractor.h"
 #include "include/ExtendedExtractor.h"
 
@@ -168,6 +169,7 @@ void DataSource::RegisterSniffer(SnifferFunc func, bool isExtendedExtractor) {
 // static
 void DataSource::RegisterDefaultSniffers() {
     RegisterSniffer(SniffMPEG4);
+    RegisterSniffer(SniffFragmentedMP4);
     RegisterSniffer(SniffMatroska);
     RegisterSniffer(SniffOgg);
     RegisterSniffer(SniffWAV);
@@ -238,7 +240,7 @@ sp<DataSource> DataSource::CreateFromURI(
 
 # if CHROMIUM_AVAILABLE
     } else if (!strncasecmp("data:", uri, 5)) {
-        source = new DataUriSource(uri);
+        source = createDataUriSource(uri);
 #endif
     } else {
         // Assume it's a filename.
