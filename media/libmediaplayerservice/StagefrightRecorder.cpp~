@@ -920,11 +920,10 @@ ERROR:
 #endif
 }
 
-    status_t status = OK;
-
 status_t StagefrightRecorder::start() {
 #ifdef ALLWINNER
     //CHECK_GE(mOutputFd, 0);
+    status_t status = OK;
 
 	if (mbHWEncoder)
 	{
