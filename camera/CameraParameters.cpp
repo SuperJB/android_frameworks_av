@@ -53,10 +53,12 @@ const char CameraParameters::CAPTURE_MODE_PANORAMA[] = "panorama";
 const char CameraParameters::CONTINUOUS_AF_OFF[] = "caf-off";
 const char CameraParameters::CONTINUOUS_AF_ON[] = "caf-on";
 const char CameraParameters::KEY_CONTINUOUS_AF[] = "continuous-af";
+const char CameraParameters::KEY_CAF[] = "continuous-af";
 const char CameraParameters::KEY_CAPTURE_MODE[] = "capture-mode";
 const char CameraParameters::KEY_PICTURE_COUNT[] = "picture-count";
 const char CameraParameters::KEY_MAX_BURST_PICTURE_COUNT[] = "max-burst-picture-count";
 const char CameraParameters::KEY_SUPPORTED_CONTINUOUS_AF[] = "continuous-af-mode";
+const char CameraParameters::KEY_SUPPORTED_CAF[] = "continuous-af-values";
 const char CameraParameters::KEY_SUPPORTED_CAPTURE_MODES[] = "capture-mode-values";
 #endif
 const char CameraParameters::KEY_PICTURE_SIZE[] = "picture-size";
@@ -118,7 +120,7 @@ const char CameraParameters::KEY_ZOOM_SUPPORTED[] = "zoom-supported";
 const char CameraParameters::KEY_SMOOTH_ZOOM_SUPPORTED[] = "smooth-zoom-supported";
 const char CameraParameters::KEY_FOCUS_DISTANCES[] = "focus-distances";
 const char CameraParameters::KEY_VIDEO_FRAME_FORMAT[] = "video-frame-format";
-#if defined(QCOM_HARDWARE) || defined(EXYNOS4X12_ENHANCEMENTS)
+#if defined(QCOM_HARDWARE) || defined(EXYNOS4X12_ENHANCEMENTS) || defined(HAVE_ISO)
 const char CameraParameters::KEY_SUPPORTED_ISO_MODES[] = "iso-values";
 const char CameraParameters::KEY_ISO_MODE[] = "iso";
 #endif

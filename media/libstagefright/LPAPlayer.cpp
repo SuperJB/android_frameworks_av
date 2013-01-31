@@ -47,14 +47,13 @@
 
 static const char   mName[] = "LPAPlayer";
 
-#define MEM_BUFFER_SIZE 262144
-#define MEM_BUFFER_COUNT 4
+#define MEM_BUFFER_SIZE 524288
+#define MEM_BUFFER_COUNT 2
 
 #define PCM_FORMAT 2
 #define NUM_FDS 2
 namespace android {
 int LPAPlayer::objectsAlive = 0;
-bool LPAPlayer::mLpaInProgress = false;
 
 LPAPlayer::LPAPlayer(
                     const sp<MediaPlayerBase::AudioSink> &audioSink, bool &initCheck,
@@ -85,7 +84,6 @@ mObserver(observer),
 mTrackType(TRACK_NONE){
     ALOGV("LPAPlayer::LPAPlayer() ctor");
     objectsAlive++;
-    mLpaInProgress = true;
     mTimeStarted = 0;
     mTimePlayed = 0;
     numChannels =0;
@@ -105,7 +103,6 @@ mTrackType(TRACK_NONE){
     mIsAudioRouted = false;
 
     initCheck = true;
-
     //mDeathRecipient = new PMDeathRecipient(this);
 }
 
@@ -175,14 +172,11 @@ LPAPlayer::~LPAPlayer() {
     }
 
     reset();
-    objectsAlive--;
-    mLpaInProgress = false;
-
-    releaseWakeLock();
-    if (mPowerManager != 0) {
-        sp<IBinder> binder = mPowerManager->asBinder();
-        binder->unlinkToDeath(mDeathRecipient);
+    if (mAudioFlinger != NULL) {
+        mAudioFlinger->deregisterClient(AudioFlingerClient);
     }
+    objectsAlive--;
+
 }
 
 void LPAPlayer::getAudioFlinger() {
@@ -347,10 +341,6 @@ status_t LPAPlayer::start(bool sourceAlreadyStarted) {
         return err;
     }
 
-    if (!mIsA2DPEnabled) {
-        acquireWakeLock();
-    }
-
     mIsAudioRouted = true;
     mStarted = true;
     mAudioSink->start();
@@ -374,9 +364,6 @@ status_t LPAPlayer::seekTo(int64_t time_us) {
     mTimeStarted = 0;
     ALOGV("In seekTo(), mSeekTimeUs %lld",mSeekTimeUs);
     mAudioSink->flush();
-    if (mPaused) {
-        mAudioSink->pause();
-    }
     pthread_cond_signal(&decoder_cv);
     //TODO: Update the mPauseTime
     return OK;
@@ -391,11 +378,11 @@ void LPAPlayer::pause(bool playPendingSamples) {
     mPaused = true;
     if (playPendingSamples) {
         if (!mIsA2DPEnabled) {
-           /* if (!mPauseEventPending) {
+            if (!mPauseEventPending) {
                 ALOGV("Posting an event for Pause timeout");
                 mQueue.postEventWithDelay(mPauseEvent, LPA_PAUSE_TIMEOUT_USEC);
                 mPauseEventPending = true;
-            }*/
+            }
             if (mAudioSink.get() != NULL)
                 mAudioSink->pause();
         }
@@ -406,11 +393,11 @@ void LPAPlayer::pause(bool playPendingSamples) {
         }
     } else {
         if (!mIsA2DPEnabled) {
-            /*if(!mPauseEventPending) {
+            if(!mPauseEventPending) {
                 ALOGV("Posting an event for Pause timeout");
                 mQueue.postEventWithDelay(mPauseEvent, LPA_PAUSE_TIMEOUT_USEC);
                 mPauseEventPending = true;
-            }*/
+            }
             if (mAudioSink.get() != NULL)
                 mAudioSink->pause();
             } else {
@@ -441,6 +428,7 @@ void LPAPlayer::resume() {
         setupAudioSink();
 
         mPaused = false;
+        mIsAudioRouted = true;
         mAudioSink->start();
         mTimeStarted = nanoseconds_to_microseconds(systemTime(SYSTEM_TIME_MONOTONIC));
         pthread_cond_signal(&decoder_cv);
@@ -471,9 +459,10 @@ void LPAPlayer::reset() {
     // make sure Decoder thread has exited
     requestAndWaitForDecoderThreadExit();
     requestAndWaitForA2DPNotificationThreadExit();
-
-    mAudioSink->stop();
-    mAudioSink->close();
+    if (mIsAudioRouted) {
+        mAudioSink->stop();
+        mAudioSink->close();
+    }
     mAudioSink.clear();
     // Make sure to release any buffer we hold onto so that the
     // source is able to stop().
@@ -746,9 +735,9 @@ void LPAPlayer::requestAndWaitForDecoderThreadExit() {
 
     if (!decoderThreadAlive)
         return;
-    if(mPaused)
-        mAudioSink->flush();
     killDecoderThread = true;
+    if (mIsAudioRouted)
+        mAudioSink->flush();
     pthread_cond_signal(&decoder_cv);
     pthread_join(decoderThread,NULL);
     ALOGV("decoder thread killed");
@@ -779,12 +768,10 @@ void LPAPlayer::onPauseTimeOut() {
         // 2.) Close routing Session
         mAudioSink->close();
         mIsAudioRouted = false;
-
-        // 3.) Release Wake Lock
-        releaseWakeLock();
+        mTrackType = TRACK_NONE;
     }
-
 }
+
 status_t  LPAPlayer::setupAudioSink()
 {
     status_t err = NO_ERROR;

@@ -285,8 +285,12 @@ uint32_t OMXCodec::getComponentQuirks(
         quirks |= kOutputBuffersAreUnreadable;
     }
     if (list->codecHasQuirk(
-                index, "requies-loaded-to-idle-after-allocation")) {
+                index, "requires-loaded-to-idle-after-allocation")) {
       quirks |= kRequiresLoadedToIdleAfterAllocation;
+    }
+    if (list->codecHasQuirk(
+                index, "defers-output-buffer-allocation")) {
+        quirks |= kDefersOutputBufferAllocation;
     }
     if (list->codecHasQuirk(
                 index, "avoid-memcopy-input-recording-frames")) {
@@ -940,7 +944,8 @@ status_t OMXCodec::setVideoPortFormatType(
              index, format.eCompressionFormat, format.eColorFormat);
 #endif
 
-        if (!strcmp("OMX.TI.Video.encoder", mComponentName)) {
+        if (!strcmp("OMX.TI.Video.encoder", mComponentName) ||
+            !strcmp("OMX.TI.720P.Encoder", mComponentName)) {
             if (portIndex == kPortIndexInput
                     && colorFormat == format.eColorFormat) {
                 // eCompressionFormat does not seem right.
@@ -3866,7 +3871,8 @@ bool OMXCodec::drainInputBuffer(BufferInfo *info) {
 
     // This component does not ever signal the EOS flag on output buffers,
     // Thanks for nothing.
-    if (mSignalledEOS && !strcmp(mComponentName, "OMX.TI.Video.encoder")) {
+    if (mSignalledEOS && (!strcmp(mComponentName, "OMX.TI.Video.encoder") || 
+                          !strcmp(mComponentName, "OMX.TI.720P.Encoder"))) {
         mNoMoreOutputData = true;
         mBufferFilled.signal();
     }
